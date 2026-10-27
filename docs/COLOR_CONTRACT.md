@@ -1,6 +1,6 @@
 # Bounded SDR color contract
 
-Status: CLI preview prepared for public release. The owner has authorized publication of the original source under MIT. This contract covers local processing of synthetic test inputs; it makes no real-photo, physical-film or GUI validation claim. See [VALIDATION.md](../VALIDATION.md) for the current environment, installation, test and build evidence.
+Status: public CLI preview. The owner has authorized publication of the original source under MIT. This contract covers local processing of synthetic test inputs; it makes no real-photo, physical-film or GUI validation claim. See [VALIDATION.md](../VALIDATION.md) for the current environment, installation, test and build evidence.
 
 ## Processing contract
 

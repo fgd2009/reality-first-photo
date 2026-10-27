@@ -15,14 +15,14 @@ Current validation: **2026-10-27**, Linux x86_64, Python **3.12.14**. A new virt
 | Export dimensions, sample depth and ICC | Passed: 257×97; uint16 TIFF / uint8 PNG and JPEG; exact working ICC |
 | Input SHA-256 before and after export | Unchanged for all 3 inputs |
 | ZIP path/entry review and common secret-pattern scan | Passed; no traversal, symlinks, encrypted entries or matched secret patterns |
-| GitHub repository creation | Blocked: the authenticated integration returned `GraphQL: Resource not accessible by integration (createRepository)` |
-| Remote push / exact remote commit / public CI | Not run: repository creation was denied; a follow-up metadata read still returned HTTP 404 |
+| Public repository / exact remote commit | Passed: `fgd2009/reality-first-photo`, public, owner `fgd2009`; initial published source commit `3228aded8dce7815d68e5ae94cbfffc771156449` |
+| GitHub Actions on that source commit | [Passed](https://github.com/fgd2009/reality-first-photo/actions/runs/40477108440): 55 tests; sdist/wheel build; isolated wheel installation and 3/3 synthetic exports |
 
 The regression run disabled automatic pytest plugin loading and bytecode writing. A Python audit hook rejected socket and child-process events; none occurred. This describes the test harness, not a product-level OS sandbox. Installation/build downloaded dependencies; CLI processing contains no telemetry, network or model-call implementation.
 
 The uploaded source archive was `release_candidate.zip`, 53,054 bytes, SHA-256 `8f12a99143c62335f7e8ee1d17fc012750cb153a4e7306391131e7c024297ab8`. macOS ZIP sidecar metadata was excluded from the publication tree. Only original code, documentation, tests, the generated working ICC and the original demonstration generator are included. No real photographs, commercial LUT/XMP assets, private configuration or credentials are included.
 
-GitHub identity was verified as `fgd2009`, and the intended target was `fgd2009/reality-first-photo`. This is a publication-permission blocker, not a failed code check. No repository or release was created by this attempt. The local source commit and built artifacts are ready for publication when a repository can be created through an authorized account or app. No credential, permission-scope or network configuration changes were attempted.
+GitHub identity and public repository ownership were verified as `fgd2009`. The owner created and named the empty repository after the integration could not create or rename it. The validated source was then pushed without force, and the exact remote commit was checked. CI completed successfully on 2026-10-27 at 08:57:31 UTC; its logs report 55 passed in 0.94 seconds, successful package builds, no broken requirements and 3/3 synthetic exports. This publication record is a documentation-only follow-up to that tested source commit. No credential, permission-scope or network configuration changes were made. See [Actions](https://github.com/fgd2009/reality-first-photo/actions) for subsequent commit checks.
 
 ## Regression scope
 
