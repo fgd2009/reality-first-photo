@@ -55,6 +55,8 @@ jobs:
               assert image.mode == "RGB"
               assert image.info.get("icc_profile")
           PY
+      - name: Verify installed workflow and interrupted-run recovery
+        run: python scripts/acceptance.py --python "$RUNNER_TEMP/wheel-venv/bin/python"
       - name: Run packaged four-way comparison
         run: |
           cd "$RUNNER_TEMP"

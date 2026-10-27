@@ -64,7 +64,8 @@ def render_comparison_html(report: dict) -> str:
         raise ValueError("Comparison report requires LUT metadata")
 
     # Validate JSON and every image path before constructing any report markup.
-    metadata = {key: value for key, value in report.items() if key != "items"}
+    # A static page cannot observe whether the final status checkpoint committed.
+    metadata = {key: value for key, value in report.items() if key not in {"items", "status"}}
     metadata_json = _json(metadata)
     _json(items)
     rows = []
@@ -139,6 +140,8 @@ def render_comparison_html(report: dict) -> str:
         "<h1>Four-way comparison</h1>"
         '<p class="note">Compare the same input and selected LUT across four recipes. '
         "No result is selected or rated as best.</p>"
+        '<p class="note">If the command stopped unexpectedly, check <code>compare.json</code>: '
+        'its status must be <code>complete</code>. This page alone does not establish completion.</p>'
         f"<p>LUT: <strong>{_text(lut.get('name', ''))}</strong></p>"
         "<p>This private local report contains input filenames, hashes and derived images. "
         "The tool does not upload it. Keep the report folder together when moving it.</p>"

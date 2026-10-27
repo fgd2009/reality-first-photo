@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+from . import report_state
 from .io import save_image, working_srgb_icc
 
 
@@ -80,6 +80,8 @@ def make_comparison(destination: Path) -> None:
 def run_demo(destination: Path) -> int:
     from .local_cli import main as process
 
+    if destination.exists() or destination.is_symlink():
+        raise FileExistsError("Demo output already exists; choose a new directory")
     destination = destination.resolve()
     # Own this directory only after exclusive creation succeeds. An existing
     # directory is never opened for writing, even to record a failure manifest.
@@ -90,7 +92,7 @@ def run_demo(destination: Path) -> int:
               "input": "input", "normalized": "normalized", "styled": "styled"}
     code = 0
     try:
-        (destination / "demo.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+        report_state.write_json(destination / "demo.json", report)
         _generate_contents(destination)
         print("Synthetic demo: generated pixels only; no real photos or commercial presets.", flush=True)
         common = ["--input", str(destination / "input"), "--normalize-strength", ".6", "--format", "png"]
@@ -103,13 +105,18 @@ def run_demo(destination: Path) -> int:
                 raise RuntimeError(f"{folder} export failed; inspect the error above and partial outputs")
         make_comparison(destination)
         report.update(status="complete", comparison="comparison.png")
+        report_state.write_json(destination / "demo.json", report)
     except KeyboardInterrupt:
         report.update(status="cancelled", notice="Partial demo retained; choose a new output directory to restart.")
         code = 130
     except (OSError, ValueError, RuntimeError) as exc:
         report.update(status="failed", error=str(exc))
         code = 2
-    (destination / "demo.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    if code:
+        try:
+            report_state.write_json(destination / "demo.json", report)
+        except OSError as exc:
+            print(f"Cannot save final demo status: {exc}. Treat all outputs as incomplete.", file=sys.stderr)
     if code:
         print(f"Demo {report['status']}: {report.get('error', report['notice'])}", file=sys.stderr)
         print(f"Partial outputs: {destination}. Use a new --output directory to retry.", file=sys.stderr)
@@ -136,3 +143,6 @@ def main(argv=None) -> int:
     except (OSError, ValueError) as exc:
         print(f"Error: Cannot create the demo: {exc}", file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        print("Demo cancelled during preparation; use a new output directory to retry.", file=sys.stderr)
+        return 130

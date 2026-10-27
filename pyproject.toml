@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "reality-first-photo"
-version = "0.1.0a3"
+version = "0.1.0a4"
 description = "Local sRGB normalization and user-supplied SDR CUBE preview"
 readme = "README.md"
 license = "MIT"

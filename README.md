@@ -1,6 +1,6 @@
 # Reality First Photo
 
-An offline command-line preview for natural image normalization and your own SDR CUBE LUTs. Version **0.1.0a3** imports supported RGB images, converts them to encoded sRGB, applies bounded exposure/white-balance and tone/color normalization, then applies your selected LUT at an explicit strength. Export as sRGB PNG, JPEG or 16-bit TIFF.
+An offline command-line preview for natural image normalization and your own SDR CUBE LUTs. Version **0.1.0a4** imports supported RGB images, converts them to encoded sRGB, applies bounded exposure/white-balance and tone/color normalization, then applies your selected LUT at an explicit strength. Export as sRGB PNG, JPEG or 16-bit TIFF.
 
 This is an early CLI preview, not a complete photo editor or a calibrated physical-film emulator.
 
@@ -34,8 +34,11 @@ Installation downloads Python dependencies. Image processing runs locally withou
 After the demo above, reuse its synthetic inputs and original warm LUT:
 
 ```sh
+reality-first-photo check --input first-look/input --lut first-look/demo_warm.cube --format png
 reality-first-photo compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
 ```
+
+`check` really decodes the inputs and reports ready, blocked and ignored entries with ICC decisions. It writes no files and does not extract EXIF through an external helper; add `--json` for a machine-readable report on stdout. Match the intended format, preview size and explicit sRGB assumption. A check does not lock files or guarantee they remain unchanged for the later run.
 
 **Open `first-compare/index.html` in your browser** to compare four PNG previews for each input:
 
@@ -52,9 +55,19 @@ For your own images, replace `--input` and `--lut` with local paths, and choose 
 
 Input symlinks (including links inside an input folder), existing output paths and outputs inside the input tree are rejected. Supported input names/content and LUT bytes are checked between routes and before completion; a detected change leaves a failed report without a success page. This is change detection, not an immutable file snapshot.
 
-The local report consists of `index.html`, `compare.json` and the four image folders. It contains input filenames and hashes, LUT metadata and derived images; the tool does not upload it. Keep the folder together so its relative image links continue to work. The command does not launch a browser or start a server, and only a completed comparison produces the HTML report.
+The local report consists of `index.html`, `compare.json` and the four image folders. It contains input filenames and hashes, LUT metadata and derived images; the tool does not upload it. Keep the folder together so its relative image links continue to work. The command does not launch a browser or start a server. Successful completion requires `compare.json` to say `complete`; a forced stop can leave an HTML file before that final checkpoint, so the page's existence alone is insufficient.
 
 Python callers can use `reality_first_normalization.compare.run_comparison(source, output, lut_path, ...)` with `Path` arguments. It returns 0 on success, 2 on a processing failure, or 130 on cancellation; invalid preflight options/paths raise `ValueError` or `OSError` before creating output.
+
+### Export the route you choose
+
+After comparing, choose a route yourself and rerun the original inputs through the standard export command with the **exact strengths, LUT, preview size and color assumption recorded in your report**. For example, only if you chose the combined route from the example above:
+
+```sh
+reality-first-photo --input first-look/input --output chosen-tiff --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1 --max-long-edge 2048 --format tiff
+```
+
+For normalization alone, omit the LUT; for LUT only, set normalization strength to zero; for the input reference, do both. Use your actual comparison strengths if they differ from the example. TIFF is 16-bit while comparison PNGs are 8-bit; do not feed the exported reference PNG back into the pipeline. See the [route mapping and recovery guide](docs/TROUBLESHOOTING.md#export-the-route-you-chose).
 
 ## Process your own images
 
@@ -66,7 +79,7 @@ Use an appropriately licensed LUT authored for **encoded sRGB**. Normalization r
 
 The default preview long edge is 2048 pixels. Choose `--max-long-edge 0` explicitly for full size. Decoding happens before resizing; large-image memory use and performance have not been validated.
 
-Choose a **new output directory** for each run. Existing directories are rejected, and the output cannot be inside an input folder. Folder input searches recursively for JPEG, PNG and TIFF files. Known RAW extensions cause the whole run to fail before creating output; other extensions are ignored. Each run writes a `manifest.json` with its status, completed files, input hashes and color decisions. Each item also records `normalization.applied` and `normalization.operations`, including the actual `exposure_scale` and `white_balance_gains_rgb` when normalization runs. These are calculated processing parameters, not photo-quality scores. Failed or cancelled runs retain partial output; restart into another new directory. Cancellation is covered by injected `KeyboardInterrupt` tests, not physical keyboard or GUI validation.
+Choose a **new output directory** for each run. Existing directories are rejected, and the output cannot be inside an input folder. Folder input searches recursively for JPEG, PNG and TIFF files. Known RAW extensions cause the whole run to fail before creating output; other extensions are ignored. Each processing run writes a `manifest.json` with its status, completed files, input hashes and color decisions. Each item also records `normalization.applied` and `normalization.operations`, including the actual `exposure_scale` and `white_balance_gains_rgb` when normalization runs. These are calculated processing parameters, not photo-quality scores. Failed or cancelled runs retain partial output and record the active/failed relative filename and processing stage; fix the cause and restart into another new directory. Abrupt termination can leave a `running` or missing final record, which must be treated as incomplete. Validation includes injected interruptions and real Linux SIGINT/SIGTERM signals at a controlled processing checkpoint; physical keyboard and GUI behavior remain unverified.
 
 ## If a command stops
 
@@ -75,6 +88,8 @@ Choose a **new output directory** for each run. Existing directories are rejecte
 | Output directory already exists | Pick a new directory, for example `--output first-look-2`. Existing output is preserved. |
 | A new input has missing or invalid ICC | Re-export as tagged RGB sRGB in a trusted color-managed tool. Use `--assume-srgb` only for untagged pixels you know are already encoded sRGB; it cannot bypass an invalid ICC. |
 | CUBE LUT not found | Correct the `--lut` path to your own supported CUBE file. For the standard image-processing command, omit `--lut` only if you want normalization alone; `compare` requires it. |
+
+Use the [troubleshooting guide](docs/TROUBLESHOOTING.md) for read-only checks, status interpretation and the pending synthetic HTML visual checklist. Actual browser appearance remains unverified in the managed development environment: local-file navigation was blocked with `ERR_BLOCKED_BY_ADMINISTRATOR`. Do not bypass that policy; structural HTML tests are not visual browser validation.
 
 ## Supported inputs and limits
 
@@ -104,6 +119,8 @@ python -m build
 The existing `--input` / `--output` command remains available for image processing. From a source checkout, `python -m examples.generate_demo demo-assets` still generates the original synthetic inputs and LUTs without processing them.
 
 The [CI workflow](.github/workflows/ci.yml) runs the candidate tests on Ubuntu with Python 3.12, builds the package, installs its wheel in a separate environment and runs the complete demo and four-way comparison outside the source checkout. It does not publish to PyPI. See [VALIDATION.md](VALIDATION.md) for the current executed checks and remaining limits; historical results from a larger recovery tree are not additional test coverage for this repository.
+
+The [roadmap](ROADMAP.md) starts with reliable end-to-end use, then a [voluntary local tryout](docs/TRYOUT.md). Its small-group learning gates are proposed criteria, not collected user results. No unsolicited outreach or automatic best-image choice is part of this work.
 
 ## License and dependencies
 

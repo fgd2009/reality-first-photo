@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from . import local_cli
+from . import report_state
 from .comparison_report import render_comparison_html
 from .lut import load_cube_lut
 
@@ -32,9 +33,7 @@ def _signature(source: Path) -> dict[str, str]:
 
 
 def _write_report(output: Path, report: dict) -> None:
-    temporary = output / ".compare.json.tmp"
-    temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
-    temporary.replace(output / "compare.json")
+    report_state.write_json(output / "compare.json", report)
 
 
 def _check_unchanged(source: Path, expected: dict[str, str], lut_path: Path, lut_sha256: str) -> None:
@@ -131,7 +130,7 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
         "reference_notice": "Decoded, ICC-converted/resized sRGB PNG reference, not a source-file copy.",
         "notice": "Four alternatives, no automatic ranking. Input and LUT hashes are checked between stages.",
         "lut": {"name": lut_path.name, "sha256": lut.source_sha256},
-        "recipes": recipes, "stages": {}, "items": [],
+        "recipes": recipes, "stages": {}, "items": [], "active_recipe": None,
     }
     # Exclusive root creation: no existing content is opened for writing.
     output.mkdir(parents=True, exist_ok=False)
@@ -142,6 +141,8 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
         for recipe in recipes:
             _check_unchanged(source, expected, lut_path, lut.source_sha256)
             recipe_id = recipe["id"]
+            report["active_recipe"] = recipe_id
+            _write_report(output, report)
             args = argparse.Namespace(input=source, output=output / recipe_id,
                                       lut=lut_path if recipe["lut_selected"] else None,
                                       normalize_strength=recipe["normalize_strength"], lut_strength=recipe["lut_strength"],
@@ -151,22 +152,26 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
             manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
             report["stages"][recipe_id] = {"status": manifest.get("status", "incomplete"),
                                            "manifest": f"{recipe_id}/manifest.json",
-                                           "exported": len(manifest.get("items", []))}
+                                           "exported": len(manifest.get("items", [])),
+                                           "failed_input": manifest.get("failed_input"),
+                                           "failed_stage": manifest.get("failed_stage")}
             _write_report(output, report)
             if result == 130:
                 raise KeyboardInterrupt
             if result:
-                raise RuntimeError(f"{recipe_id} export failed: {manifest.get('error', 'see partial stage output')}")
+                raise RuntimeError(f"{recipe_id} export failed at {json.dumps(manifest.get('failed_input'), ensure_ascii=True)} "
+                                   f"({manifest.get('failed_stage')}): {manifest.get('error', 'see partial stage output')}")
             manifests[recipe_id] = manifest
             _check_unchanged(source, expected, lut_path, lut.source_sha256)
         report["items"] = _collect_items(names, expected, recipes, manifests, lut.source_sha256)
+        report["active_recipe"] = None
         report["status"] = "complete"
         html = render_comparison_html(report)
         _check_unchanged(source, expected, lut_path, lut.source_sha256)
         temporary = output / ".index.html.tmp"
         temporary.write_text(html, encoding="utf-8")
-        _write_report(output, report)
         temporary.replace(output / "index.html")
+        _write_report(output, report)
     except KeyboardInterrupt:
         report.update(status="cancelled", notice="Partial comparison retained; choose a new output directory to restart.")
         code = 130
@@ -176,7 +181,10 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
     if code:
         (output / "index.html").unlink(missing_ok=True)
         (output / ".index.html.tmp").unlink(missing_ok=True)
-        _write_report(output, report)
+        try:
+            _write_report(output, report)
+        except OSError as exc:
+            print(f"Cannot save final comparison status: {exc}. Treat all outputs as incomplete.", file=sys.stderr)
         print(f"Comparison {report['status']}: {report.get('error', report['notice'])}", file=sys.stderr)
         print(f"Partial outputs: {output}. Use a new --output directory to retry.", file=sys.stderr)
     else:
@@ -207,3 +215,6 @@ def main(argv=None) -> int:
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        print("Comparison cancelled during preparation; use a new output directory to retry.", file=sys.stderr)
+        return 130

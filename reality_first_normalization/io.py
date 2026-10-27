@@ -186,7 +186,11 @@ def load_image(path: Path, max_long_edge: int = 0, raw_half_size: bool = False, 
                 header = f.read(26)
             if header[:8] != b"\x89PNG\r\n\x1a\n" or len(header) < 26 or header[24] != 8:
                 raise ColorManagementError("仅支持 8 位 RGB PNG；高位深 PNG 不允许静默降为 8 位。")
-        with Image.open(path) as opened:
+        try:
+            opened = Image.open(path)
+        except Image.DecompressionBombError as exc:
+            raise ColorManagementError("Image exceeds Pillow's safe pixel limit; reduce dimensions in a trusted image tool. The safety limit was not disabled.") from exc
+        with opened:
             expected_format = "PNG" if ext in PNG_EXTS else "JPEG"
             if opened.format != expected_format:
                 raise ColorManagementError("文件内容格式与扩展名不一致；请先更正名称，不能绕过位深检查。")
