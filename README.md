@@ -1,42 +1,39 @@
 # Reality First Photo
 
-An offline command-line preview for natural image normalization and your own SDR CUBE LUTs. Version **0.1.0a4** imports supported RGB images, converts them to encoded sRGB, applies bounded exposure/white-balance and tone/color normalization, then applies your selected LUT at an explicit strength. Export as sRGB PNG, JPEG or 16-bit TIFF.
+Compare an input reference, natural normalization, your own LUT and their combination **offline on your computer**. Source images stay unchanged; recorded LUT fingerprints, strengths and color decisions let you repeat the recipe you choose.
 
-This is an early CLI preview, not a complete photo editor or a calibrated physical-film emulator.
+Version **0.1.0a4** is a **Python command-line preview** for people comfortable with a terminal, supported RGB images and encoded-sRGB 3D CUBE LUTs.
 
 [中文说明](README.zh-CN.md) · [Color contract](docs/COLOR_CONTRACT.md) · [Validation](VALIDATION.md) · [MIT license](LICENSE)
 
+![Static three-column synthetic demo: Input, Normalized, and Normalized + warm LUT](docs/images/synthetic-comparison.png)
+
+*Three-column static demo made from generated gradients, a color chart and shapes: **Input → Normalized (0.6) → Normalized + warm LUT (0.5)**. The warm LUT is an original simple transform. No photographs or commercial presets are shown.*
+
+[Short demo recording plan](docs/DEMO.md) — a plan only; no video has been published.
+
 ## Quick start: see the result
 
-Requires **Python 3.12 or newer**. These commands use a POSIX shell and install the current preview from GitHub; no Git checkout or test tools are needed. The tested environment is recorded in [VALIDATION.md](VALIDATION.md); Windows and native application packaging are not validated.
+Requires **Python 3.12 or newer**. In a POSIX shell, install from GitHub and generate the demo, check its inputs, then create a four-way comparison:
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install https://github.com/fgd2009/reality-first-photo/archive/refs/heads/main.zip
 reality-first-photo demo --output first-look
-```
-
-**Open `first-look/comparison.png` in your image viewer.** Its three labeled columns show **Input**, **Normalized** and **Normalized + warm LUT** for a gradient, a color chart and geometric shapes. Normalization strength is 0.6; the final column applies the original warm demo LUT at strength 0.5 after that normalization.
-
-These are **synthetic images, not photographs**. The warm LUT is a simple original affine transform, not a named film stock or commercial look. This comparison demonstrates the processing steps; it does not establish professional photo quality or physical film accuracy.
-
-![Synthetic gradient, color chart and shapes shown as Input, Normalized, and Normalized + warm LUT](docs/images/synthetic-comparison.png)
-
-*Original synthetic demonstration only; no photographs or commercial presets.*
-
-The command works from any directory after installation. It prints the result paths and creates `input/`, `normalized/`, `styled/`, two original CUBE files, `comparison.png` and `demo.json` inside the new `first-look` folder. The two export folders each include three PNGs and a processing manifest. If `first-look` already exists, choose a different name, such as `--output first-look-2`; the demo never overwrites it.
-
-Installation downloads Python dependencies. Image processing runs locally without telemetry, model calls, API keys, account login or network access. The CLI does not invoke an external EXIF helper or read personal preference stores. No photographs, third-party LUTs or XMP presets are included.
-
-## Compare four processing routes
-
-After the demo above, reuse its synthetic inputs and original warm LUT:
-
-```sh
 reality-first-photo check --input first-look/input --lut first-look/demo_warm.cube --format png
 reality-first-photo compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
 ```
+
+Open **`first-look/comparison.png`** for the static three-column demo. Open **`first-compare/index.html`** where local-file browsing is permitted for the four-route report and individual PNG links. Choose fresh output directories; existing output is never overwritten. No Git checkout or test tools are needed, and the installed commands work outside a source checkout.
+
+Installation downloads dependencies. Image processing stays local without telemetry, model calls, account login or uploads. The CLI does not invoke an external EXIF helper or read personal preference stores.
+
+**Preview boundaries:** you choose a preferred result; the tool does not score images or select a winner. Evidence covers synthetic inputs and the checks in [VALIDATION.md](VALIDATION.md), not real-photo quality or physical film accuracy. Independent user trials have not been completed. RAW, a full GUI and native app installers are outside this preview; cross-platform behavior and actual browser appearance remain unverified. See the [support limits](#supported-inputs-and-limits) and [browser-check status](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check).
+
+## Compare four processing routes
+
+The quick-start commands reuse the demo's generated inputs and original warm LUT.
 
 `check` really decodes the inputs and reports ready, blocked and ignored entries with ICC decisions. It writes no files and does not extract EXIF through an external helper; add `--json` for a machine-readable report on stdout. Match the intended format, preview size and explicit sRGB assumption. A check does not lock files or guarantee they remain unchanged for the later run.
 

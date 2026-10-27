@@ -1,42 +1,39 @@
 # Reality First Photo
 
-**0.1.0a4 离线命令行预览版**：导入受支持的 RGB 图像，转换到编码 sRGB，先进行有边界的自然曝光、白平衡及影调/色彩归一化，再按明确强度应用用户自己的 SDR CUBE LUT，导出 sRGB PNG、JPEG 或 16 位 TIFF。
+**在本机离线比较**原图参考、自然归一化、自己的 LUT，以及归一化与 LUT 的组合，由你决定采用哪一路。源图保持不变；LUT 指纹、强度和色彩决策会被记录，便于按选定配方重复处理。
 
-这是早期 CLI 预览，不是完整照片编辑器，也不宣称经过标定的真实胶片复现。
+当前 **0.1.0a4** 是 **Python 命令行预览版**，面向愿意使用终端、准备好受支持 RGB 图像和编码 sRGB 3D CUBE LUT 的用户。
 
 [English](README.md) · [色彩契约](docs/COLOR_CONTRACT.md) · [验证记录](VALIDATION.md) · [MIT 许可](LICENSE)
 
+![三列静态合成演示：Input、Normalized、Normalized + warm LUT](docs/images/synthetic-comparison.png)
+
+*用原创渐变、色卡和几何图形生成的三列静态演示：**Input（输入）→ Normalized（归一化 0.6）→ Normalized + warm LUT（暖色 LUT 强度 0.5）**。暖色 LUT 是原创简单变换，图中不含真实照片或商业预设。*
+
+[短演示录制计划](docs/DEMO.md)——目前仅有计划，尚未发布视频。
+
 ## 快速开始：先看到结果
 
-要求 **Python ≥3.12**。下列命令使用 POSIX shell，直接从 GitHub 安装当前预览，不需要 Git 仓库副本或测试工具。实际验证环境见 [VALIDATION.md](VALIDATION.md)，Windows 和原生应用安装包尚未验证。
+要求 **Python ≥3.12**。在 POSIX shell 中从 GitHub 安装，生成 demo、检查输入，再运行四路比较：
 
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install https://github.com/fgd2009/reality-first-photo/archive/refs/heads/main.zip
 reality-first-photo demo --output first-look
-```
-
-**用图像查看器打开 `first-look/comparison.png`。** 三列分别标为 **Input（原图）**、**Normalized（归一化）**、**Normalized + warm LUT（归一化后加暖色 LUT）**，展示渐变、色卡和几何图形。归一化强度为 0.6；最后一列在此基础上以 0.5 强度应用原创暖色示例 LUT。
-
-这些都是**合成图，不是真实照片**。暖色 LUT 是简单原创仿射变换，不代表某个胶片品牌或商业风格。对比图只演示处理步骤，不构成专业照片效果或物理胶片准确性的背书。
-
-![原创合成渐变、色卡和几何图形的原图、归一化、归一化后加暖色 LUT 对比](docs/images/synthetic-comparison.png)
-
-*仅为原创合成演示，不包含真实照片或商业预设。*
-
-安装后可以在任意目录运行此命令。程序打印结果路径，并在新的 `first-look` 文件夹内创建 `input/`、`normalized/`、`styled/`、两个原创 CUBE 文件、`comparison.png` 和 `demo.json`。两个导出文件夹分别包含三张 PNG 和处理记录。如果 `first-look` 已存在，请换一个名称，例如 `--output first-look-2`；演示不会覆盖已有目录。
-
-安装过程需要下载 Python 依赖；图像处理在本地完成，没有遥测、模型调用、API 密钥、账号登录或网络请求。CLI 不调用外部 EXIF 工具，也不读取个人偏好。仓库不包含真实照片、第三方 LUT 或 XMP 预设。
-
-## 比较四条处理路径
-
-完成上面的演示后，可以复用其合成图和原创暖色 LUT：
-
-```sh
 reality-first-photo check --input first-look/input --lut first-look/demo_warm.cube --format png
 reality-first-photo compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
 ```
+
+打开 **`first-look/comparison.png`** 查看三列静态 demo；在允许本地文件访问的环境，打开 **`first-compare/index.html`** 查看四路报告和单张 PNG 链接。每次选择新的输出目录，已有输出不会被覆盖。无需 Git 仓库副本或测试工具，安装后可在源码目录外运行。
+
+安装会下载依赖；图像处理在本地完成，没有遥测、模型调用、账号登录或上传。CLI 不调用外部 EXIF 工具，也不读取个人偏好。
+
+**预览边界：**由你选择偏好，程序不会给图像打分或自动选优。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。RAW、完整 GUI 和原生应用安装包不在当前范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。
+
+## 比较四条处理路径
+
+上面的快速开始命令复用了 demo 生成的合成图与原创暖色 LUT。
 
 `check` 会真实解码输入，显示 ready、blocked、ignored 各项和 ICC 决策，不写文件、不调用外部 EXIF 工具；加 `--json` 可将机器可读报告打印到终端。检查时采用准备处理的格式、尺寸和显式 sRGB 假设。检查不会锁定输入，也不保证之后运行时文件仍未改变。
 
