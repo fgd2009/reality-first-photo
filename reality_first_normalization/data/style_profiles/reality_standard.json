@@ -1,0 +1,45 @@
+{
+  "id": "reality_standard",
+  "display_name_zh": "Reality Standard 自然标准",
+  "philosophy_zh": "最自然、最克制，优先保留真实环境光和现场氛围。",
+  "tone_target": {
+    "midtone": 0.46,
+    "brightness_bias": 0.0,
+    "micro_contrast": 0.0,
+    "density": 0.0
+  },
+  "white_balance_policy": {
+    "correction_bias": 1.0,
+    "max_shift": 0.09,
+    "atmosphere_protection": 1.0
+  },
+  "skin_priority": {
+    "protection": 0.72,
+    "saturation_limit": 1.0
+  },
+  "sky_policy": {
+    "saturation_limit": 0.74,
+    "cyan_control": 1.0
+  },
+  "vegetation_policy": {
+    "neon_control": 1.0,
+    "saturation_limit": 0.62
+  },
+  "contrast_policy": {
+    "midtone_contrast": 0.0,
+    "softness": 0.0
+  },
+  "saturation_policy": {
+    "target": 0.155,
+    "bias": 1.0
+  },
+  "highlight_policy": {
+    "rolloff_bias": 1.0,
+    "warmth": 0.0
+  },
+  "shadow_policy": {
+    "lift_bias": 1.0,
+    "black_anchor": 1.0
+  },
+  "normalization_strength_bias": 1.0
+}

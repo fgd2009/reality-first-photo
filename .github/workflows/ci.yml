@@ -1,0 +1,39 @@
+name: CLI preview checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install candidate and test tools
+        run: python -m pip install -e '.[test]' build
+      - name: Run candidate regression tests
+        run: python -m pytest -q tests
+      - name: Build source distribution and wheel
+        run: python -m build
+      - name: Install wheel and exercise synthetic export
+        run: |
+          python -m venv "$RUNNER_TEMP/wheel-venv"
+          "$RUNNER_TEMP/wheel-venv/bin/python" -m pip install dist/*.whl
+          "$RUNNER_TEMP/wheel-venv/bin/python" -m pip check
+          python -m examples.generate_demo "$RUNNER_TEMP/demo"
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-venv/bin/reality-first-photo" --input demo/input --output output --lut demo/identity.cube --normalize-strength 0 --format tiff
+          "$RUNNER_TEMP/wheel-venv/bin/python" -I -c 'import json; from pathlib import Path; result = json.loads(Path("output/manifest.json").read_text()); assert result["status"] == "complete"; assert len(result["items"]) == 3'

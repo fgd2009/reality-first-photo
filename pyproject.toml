@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reality-first-photo"
+version = "0.1.0a1"
+description = "Local sRGB normalization and user-supplied SDR CUBE preview"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+requires-python = ">=3.12"
+dependencies = ["numpy==2.4.6", "Pillow==12.2.0", "tifffile==2026.5.15"]
+
+[project.optional-dependencies]
+test = ["pytest==9.0.3"]
+
+[project.scripts]
+reality-first-photo = "reality_first_normalization.local_cli:main"
+
+[project.urls]
+Repository = "https://github.com/fgd2009/reality-first-photo"
+Issues = "https://github.com/fgd2009/reality-first-photo/issues"
+
+[tool.setuptools.packages.find]
+include = ["reality_first_normalization*"]
+
+[tool.setuptools.package-data]
+reality_first_normalization = ["data/*.icc", "data/style_profiles/*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
