@@ -1,52 +1,46 @@
-# Validation record — 0.1.0a1 CLI preview
+# Validation record — 0.1.0a2 CLI preview
 
-Current validation: **2026-10-27**, Linux x86_64, Python **3.12.14**. A new virtual environment installed the pinned dependencies from `pyproject.toml`: NumPy 2.4.6, Pillow 12.2.0, tifffile 2026.5.15 and pytest 9.0.3. The build frontend was build 1.6.1; isolated package builds used setuptools 84.2.1.
+Validated on **2026-10-27**, Linux x86_64, Python **3.12.14**. Runtime dependencies remain NumPy 2.4.6, Pillow 12.2.0 and tifffile 2026.5.15; tests use pytest 9.0.3. The build frontend is build 1.6.1, with isolated setuptools 84.2.1 builds. Python >=3.12 is required.
 
-## Current results
+## This iteration: one-command first run
 
-| Check | Result |
+The previous quickstart required a source checkout, test dependencies and separate generation/processing commands, and did not provide a labeled comparison. Version 0.1.0a2 adds `reality-first-photo demo --output first-look`, usable from the installed wheel outside a checkout. It generates original synthetic pixels and LUTs, runs the existing CLI pipeline, and produces separate exports plus `comparison.png`.
+
+The acceptance scope is limited to this first-run workflow, explanatory manifests, bilingual documentation and compatibility. No normalization parameters, LUT interpolation, ICC policy, RAW support or GUI were changed.
+
+| Check | Current result |
 | --- | --- |
-| Candidate regression suite | **55 passed, 0 failed, 0 skipped**, 0.59 seconds |
-| Offline test audit | No socket or child-process attempts; 0 blocked attempts |
-| Clean editable installation and dependency consistency | Passed; `pip check` reported no broken requirements |
-| Source distribution and wheel build | Passed; wheel built from the source distribution |
-| Separate virtual environment wheel installation | Passed; `pip check` reported no broken requirements |
-| Installed command outside the source tree | Passed; 15 exports from 3 generated images |
-| Export dimensions, sample depth and ICC | Passed: 257×97; uint16 TIFF / uint8 PNG and JPEG; exact working ICC |
-| Input SHA-256 before and after export | Unchanged for all 3 inputs |
-| ZIP path/entry review and common secret-pattern scan | Passed; no traversal, symlinks, encrypted entries or matched secret patterns |
-| Public repository / exact remote commit | Passed: `fgd2009/reality-first-photo`, public, owner `fgd2009`; initial published source commit `3228aded8dce7815d68e5ae94cbfffc771156449` |
-| GitHub Actions on that source commit | [Passed](https://github.com/fgd2009/reality-first-photo/actions/runs/40477108440): 55 tests; sdist/wheel build; isolated wheel installation and 3/3 synthetic exports |
+| Complete regression suite | **67 passed, 0 failed, 0 skipped**, 1.02 seconds |
+| Offline test audit | 0 socket/child-process attempts; 0 blocked attempts |
+| Source archive and wheel build | Passed; wheel built from the source distribution |
+| Separate virtual environment wheel installation | Passed; `pip check` found no broken requirements |
+| Installed `demo` command outside the checkout | Passed; 3 generated inputs, 6 PNG exports, 1 comparison image |
+| Export dimensions, ICC and source hashes | Passed: exports 257×97; exact working ICC; original input hashes unchanged |
+| Comparison dimensions and visual inspection | Passed: 851×583; labels readable; synthetic-only notice visible |
+| Comparison pixel accuracy | All 9 panels exactly equal the corresponding input/export PNG pixels |
+| Repeat run / existing file or directory | Rejected without changing existing contents |
+| Failure and cancellation | Nonzero processing, interrupt and comparison failures retain labeled partial state; never report success |
+| Legacy command / source example | Existing `--input` / `--output` and `python -m examples.generate_demo` remain usable |
 
-The regression run disabled automatic pytest plugin loading and bytecode writing. A Python audit hook rejected socket and child-process events; none occurred. This describes the test harness, not a product-level OS sandbox. Installation/build downloaded dependencies; CLI processing contains no telemetry, network or model-call implementation.
+The 67 tests include the existing 55 tests plus 12 onboarding regressions. These counts are not added to older, overlapping recovery-tree results.
 
-The uploaded source archive was `release_candidate.zip`, 53,054 bytes, SHA-256 `8f12a99143c62335f7e8ee1d17fc012750cb153a4e7306391131e7c024297ab8`. macOS ZIP sidecar metadata was excluded from the publication tree. Only original code, documentation, tests, the generated working ICC and the original demonstration generator are included. No real photographs, commercial LUT/XMP assets, private configuration or credentials are included.
+## Processing and evidence
 
-GitHub identity and public repository ownership were verified as `fgd2009`. The owner created and named the empty repository after the integration could not create or rename it. The validated source was then pushed without force, and the exact remote commit was checked. CI completed successfully on 2026-10-27 at 08:57:31 UTC; its logs report 55 passed in 0.94 seconds, successful package builds, no broken requirements and 3/3 synthetic exports. This publication record is a documentation-only follow-up to that tested source commit. No credential, permission-scope or network configuration changes were made. See [Actions](https://github.com/fgd2009/reality-first-photo/actions) for subsequent commit checks.
+The demo compares three columns: generated **Input**, **Normalized** (strength 0.6), and **Normalized + warm LUT** (the same normalization followed by the original affine demonstration LUT at strength 0.5). Both processed branches start from the same original inputs; the styled branch does not normalize an already-normalized PNG again. An independent affine calculation checks the styled output against the normalized output within 8-bit quantization tolerance (1/255 + 1e-7).
 
-## Regression scope
+The comparison embeds the exact working sRGB ICC and pastes each exported panel without resizing or further image processing. Text uses Pillow's bundled font; no system font, external image, model or paid service is required. The README preview is generated by this same command and was visually inspected. It shows synthetic gradients, a color chart and geometry, not real photographs or proof of photographic quality.
 
-The suite verifies red-fastest CUBE ordering against an independent flat-row scalar trilinear reference (error <2e-6), non-default/narrow domains, title whitespace and comments, and strict rejection of malformed or unsupported CUBE directives. It covers missing LUTs, explicit strengths 0/0.5/1, normalization, default preview resizing and explicit full size.
+Each image's manifest now retains the normalization result's `operations`, including exposure scale and RGB white-balance gains. When normalization is off, `applied` is false and `operations` is null. These are calculated processing parameters, not measured photo quality or a physical film model. Existing ICC decisions, input hashes, LUT hash and explicit strengths remain recorded.
 
-Precision checks retain 2048 distinct levels when resizing a 4096-level ramp, and retain 4096 levels through TIFF16 within 1/65535. A generated linear RGB ICC with the same name and primaries as the working ICC transforms code 128 to encoded sRGB near 188; the test checks actual pixel conversion and the output ICC, rather than profile relabelling.
+The final local regression run disabled automatic pytest plugins and bytecode writing. A Python audit hook rejected socket and child-process events; none occurred. This describes the test harness, not a product OS sandbox. Dependency installation/build needs network access; image processing has no network, telemetry or model-call implementation.
 
-Input checks cover missing/broken ICC, explicit sRGB assumption, high-depth profile restrictions, alpha/color-key transparency, multi-frame PNG, format/extension mismatches, packed depths, compressed TIFF and RAW rejection. Mixed RAW folders fail before export. Existing output directories are never overwritten; repeated import to a new directory succeeds. Cancellation is injected as `KeyboardInterrupt`, not tested with a physical keyboard.
+## Preserved color regressions
 
-Three release fixes were made during this review: unsupported CUBE directives now fail instead of being ignored, multi-frame images fail instead of silently selecting the first frame, and known RAW files in a mixed input folder fail before output is created. The existing normalization parameters and red-fastest interpolation were retained.
+The suite continues to check red-fastest CUBE layout with an independent flat scalar/trilinear reference, narrow/non-default domains, strict unsupported-directive rejection, missing LUT failure, explicit LUT strengths, floating-point resize precision, TIFF16 roundtrips and real ICC pixel conversion. Generated linear-RGB code 128 converts to encoded sRGB near 188 rather than being relabeled unchanged.
 
-## Installed-wheel synthetic exports
-
-The console entry point was executed in a separate virtual environment, from outside the source checkout. Inputs were original generated gradients, a color chart and geometry. Five batches exported three files each:
-
-- Identity LUT with normalization off → TIFF16.
-- Normalization strength 0.6 without a LUT → TIFF16.
-- Normalization 0.6 then original affine-warm LUT at strength 0.5 → TIFF16, PNG and JPEG.
-
-All 15 files and their manifests were inspected. Identity TIFF16 maximum error was **0.0** for the generated 8-bit inputs. Using the normalization-only TIFF output and an independent affine equation for the warm LUT, maximum error was **1.4496070801839345e-5** for TIFF16 (within 2/65535) and **0.001962615396353094** for PNG (within 1/255 + 1/65535). JPEG dimensions, depth and ICC were checked; JPEG is lossy and has no pixel-identity claim. All source hashes remained unchanged.
+Unsupported modes/depths, invalid ICC, alpha/transparency, APNG/multi-frame input, packed or compressed TIFF, format/extension mismatches and RAW remain rejected. Existing output directories are never overwritten. Cancellation is injected as `KeyboardInterrupt`; a physical keyboard or native GUI has not been validated.
 
 ## Reproduce
-
-From a source checkout with Python >=3.12:
 
 ```sh
 python3 -m venv .venv
@@ -55,15 +49,15 @@ python -m pip install -e '.[test]' build
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p no:cacheprovider tests
 python -m build
 python -m pip check
-python -m examples.generate_demo demo
-reality-first-photo --input demo/input --output out-identity --lut demo/identity.cube --normalize-strength 0 --format tiff
-reality-first-photo --input demo/input --output out-warm --lut demo/demo_warm.cube --normalize-strength 0.6 --lut-strength 0.5 --format png
+reality-first-photo demo --output first-look
 ```
 
-The [CI workflow](.github/workflows/ci.yml) also installs the built wheel into a separate environment and runs a synthetic export outside the checkout.
+The [CI workflow](.github/workflows/ci.yml) runs the suite, builds the package, installs the wheel into a separate environment, changes to a directory outside the source checkout, and runs the packaged demo. It checks both export manifests and the comparison image. [GitHub Actions](https://github.com/fgd2009/reality-first-photo/actions) records the outcome for each exact commit; local checks are not a substitute for that remote result.
 
-## Limits and historical evidence
+## Limits and prior release
 
-Not validated: real photographs or RAW, commercial LUTs/XMP, physical film accuracy, arbitrary high-depth ICC conversion, large-image memory/performance, native GUI, macOS/Windows application behavior, native installers, signing or PyPI publication. The `py3-none-any` wheel tag describes package contents, not a cross-platform test result. The existing highlight-rolloff helper produces no separate rolloff effect on bounded SDR values; this preview does not claim such an effect or change its curve.
+Not validated: real photographs, real RAW, commercial LUTs/XMP, physical film accuracy, arbitrary high-depth ICC conversion, large-image memory/performance, native GUI, Windows/macOS application behavior, native installers, signing or PyPI publication. The `py3-none-any` wheel tag is a packaging tag, not a cross-platform test result. The existing highlight-rolloff helper has no separate rolloff effect on bounded SDR values; this iteration leaves that curve unchanged.
 
-The supplied candidate previously recorded 32 passing tests on macOS Python 3.13.4. That is historical evidence only. A separate larger recovery tree's 100-test result overlaps the candidate and is **not added** to the current 55 tests.
+The public 0.1.0a1 source was validated at `3228aded8dce7815d68e5ae94cbfffc771156449`, followed by documentation commit `c582634494eb3f46de3e6859c5fc194bc0f25218`. Its [CI passed](https://github.com/fgd2009/reality-first-photo/actions/runs/40477338677), with 55 tests, package builds and an installed-wheel synthetic export. Its local 15-file synthetic export inspection is prior evidence, not new real-photo validation. The earlier macOS 32-test result and larger recovery tree's 100-test result are historical and not additive coverage.
+
+The repository is public under MIT. GitHub Release attachment upload previously returned 401 and is not retried by this iteration. No credentials, account permissions, network settings, other business repositories or external promotional messages were changed.

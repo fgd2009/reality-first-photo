@@ -28,12 +28,30 @@ jobs:
         run: python -m pytest -q tests
       - name: Build source distribution and wheel
         run: python -m build
-      - name: Install wheel and exercise synthetic export
+      - name: Install wheel and run packaged demo
         run: |
           python -m venv "$RUNNER_TEMP/wheel-venv"
           "$RUNNER_TEMP/wheel-venv/bin/python" -m pip install dist/*.whl
           "$RUNNER_TEMP/wheel-venv/bin/python" -m pip check
-          python -m examples.generate_demo "$RUNNER_TEMP/demo"
           cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/wheel-venv/bin/reality-first-photo" --input demo/input --output output --lut demo/identity.cube --normalize-strength 0 --format tiff
-          "$RUNNER_TEMP/wheel-venv/bin/python" -I -c 'import json; from pathlib import Path; result = json.loads(Path("output/manifest.json").read_text()); assert result["status"] == "complete"; assert len(result["items"]) == 3'
+          "$RUNNER_TEMP/wheel-venv/bin/reality-first-photo" demo --output first-look
+          "$RUNNER_TEMP/wheel-venv/bin/python" -I - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+
+          root = Path("first-look")
+          demo = json.loads((root / "demo.json").read_text())
+          assert demo["status"] == "complete"
+          assert demo["kind"] == "synthetic_demo"
+          for folder in ("normalized", "styled"):
+              result = json.loads((root / folder / "manifest.json").read_text())
+              assert result["status"] == "complete"
+              assert len(result["items"]) == 3
+              assert len(list((root / folder).glob("*.png"))) == 3
+          with Image.open(root / "comparison.png") as image:
+              image.load()
+              assert image.format == "PNG"
+              assert image.mode == "RGB"
+              assert image.info.get("icc_profile")
+          PY

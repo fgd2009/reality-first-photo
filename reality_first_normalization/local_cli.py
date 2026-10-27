@@ -20,13 +20,17 @@ def unit_float(value: str) -> float:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Local sRGB normalization and your own CUBE LUT. No network, AI, or personal preferences.")
+    p = argparse.ArgumentParser(
+        description="Local sRGB normalization, then your own CUBE LUT. No network or model calls.",
+        epilog="First time? Run: reality-first-photo demo --output first-look. "
+               "This creates synthetic inputs, exports and a labelled comparison.png; no photos or LUT purchase needed.",
+    )
     p.add_argument("--input", type=Path, required=True, help="Tagged RGB file or folder; RAW is unsupported.")
     p.add_argument("--output", type=Path, required=True, help="New output directory; existing directories are never overwritten.")
     p.add_argument("--lut", type=Path, help="Your own red-fastest SDR 3D CUBE, authored for encoded sRGB; omit for normalization only.")
-    p.add_argument("--normalize-strength", type=unit_float, default=1.0)
-    p.add_argument("--lut-strength", type=unit_float, default=1.0)
-    p.add_argument("--format", choices=["tiff", "png", "jpeg"], default="tiff")
+    p.add_argument("--normalize-strength", type=unit_float, default=1.0, help="Normalization before the LUT: 0 skips it, 1 is full strength (default: 1).")
+    p.add_argument("--lut-strength", type=unit_float, default=1.0, help="Blend with the chosen LUT: 0 keeps normalized pixels, 1 uses the full LUT (default: 1).")
+    p.add_argument("--format", choices=["tiff", "png", "jpeg"], default="tiff", help="TIFF exports 16-bit; PNG/JPEG export 8-bit (default: tiff).")
     p.add_argument("--max-long-edge", type=int, default=2048, help="Preview long edge in pixels (default: 2048). 0 explicitly keeps full size; large-image memory/performance is unverified.")
     p.add_argument("--assume-srgb", action="store_true", help="Explicitly declare untagged pixels as encoded sRGB; never overrides an invalid embedded ICC.")
     return p
@@ -36,7 +40,7 @@ def run(args: argparse.Namespace) -> int:
     source = args.input.resolve()
     output = args.output.resolve()
     if not source.exists():
-        raise ValueError("Input does not exist")
+        raise ValueError(f"Input does not exist: {source}. Check --input, or try 'reality-first-photo demo --output first-look'.")
     if args.max_long_edge < 0:
         raise ValueError("--max-long-edge must be nonnegative")
     if output.exists():
@@ -71,8 +75,11 @@ def run(args: argparse.Namespace) -> int:
         for src, relative in zip(files, names):
             before_hash = hashlib.sha256(src.read_bytes()).hexdigest()
             pixels, color = load_image(src, max_long_edge=args.max_long_edge, assume_srgb=args.assume_srgb, read_metadata=False)
+            normalization = {"applied": False, "operations": None}
             if args.normalize_strength:
-                pixels = normalize_image(pixels, analyze_image(pixels), strength=args.normalize_strength, style_profile="reality_standard").image
+                normalized = normalize_image(pixels, analyze_image(pixels), strength=args.normalize_strength, style_profile="reality_standard")
+                pixels = normalized.image
+                normalization = {"applied": True, "operations": normalized.operations}
             if lut is not None:
                 transformed = apply_cube_lut(pixels, lut)
                 pixels = pixels * (1 - args.lut_strength) + transformed * args.lut_strength
@@ -82,7 +89,8 @@ def run(args: argparse.Namespace) -> int:
                 raise RuntimeError("Input changed during processing; result requires review")
             manifest["items"].append({"input_name": src.name, "input_sha256": before_hash,
                                       "output": relative.as_posix(), "width": int(pixels.shape[1]),
-                                      "height": int(pixels.shape[0]), "color": color})
+                                      "height": int(pixels.shape[0]), "color": color,
+                                      "normalization": normalization})
             print(f"Exported {relative.as_posix()}", flush=True)
         manifest["status"] = "complete"
     except KeyboardInterrupt:
@@ -95,12 +103,21 @@ def run(args: argparse.Namespace) -> int:
         code = 2
     (output / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"{manifest['status']}: {len(manifest['items'])}/{len(files)} exported", flush=True)
+    if code == 0:
+        print(f"Export folder: {output}", flush=True)
     if code and "error" in manifest:
         print(manifest["error"], file=sys.stderr)
     return code
 
 
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["demo"]:
+        from .demo import main as demo_main
+        return demo_main(argv[1:])
+    if not argv:
+        build_parser().print_help()
+        return 2
     args = build_parser().parse_args(argv)
     try:
         return run(args)

@@ -5,6 +5,7 @@ build/
 dist/
 *.egg-info/
 demo/
+first-look/
 out*/
 .DS_Store
 ._*
