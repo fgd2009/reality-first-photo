@@ -27,6 +27,8 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 Open **`first-look/comparison.png`** for the static three-column demo. Open **`first-compare/index.html`** where local-file browsing is permitted for the four-route report and individual PNG links. Choose fresh output directories; existing output is never overwritten. No Git checkout or test tools are needed, and the installed commands work outside a source checkout.
 
+For a [guided voluntary tryout](docs/TRYOUT.md#try-the-flow), run this quick start once, then inspect the results already created.
+
 Installation downloads dependencies. Image processing stays local without telemetry, model calls, account login or uploads. The CLI does not invoke an external EXIF helper or read personal preference stores.
 
 **Preview boundaries:** you choose a preferred result; the tool does not score images or select a winner. Evidence covers synthetic inputs and the checks in [VALIDATION.md](VALIDATION.md), not real-photo quality or physical film accuracy. Independent user trials have not been completed. RAW, a full GUI and native app installers are outside this preview; cross-platform behavior and actual browser appearance remain unverified. See the [support limits](#supported-inputs-and-limits) and [browser-check status](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check).

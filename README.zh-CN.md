@@ -27,6 +27,8 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 打开 **`first-look/comparison.png`** 查看三列静态 demo；在允许本地文件访问的环境，打开 **`first-compare/index.html`** 查看四路报告和单张 PNG 链接。每次选择新的输出目录，已有输出不会被覆盖。无需 Git 仓库副本或测试工具，安装后可在源码目录外运行。
 
+可按[自愿试用引导](docs/TRYOUT.md#中文简要与反馈)检查结果：快速开始只运行一次，随后查看已经生成的文件。
+
 安装会下载依赖；图像处理在本地完成，没有遥测、模型调用、账号登录或上传。CLI 不调用外部 EXIF 工具，也不读取个人偏好。
 
 **预览边界：**由你选择偏好，程序不会给图像打分或自动选优。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。RAW、完整 GUI 和原生应用安装包不在当前范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。

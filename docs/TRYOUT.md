@@ -14,19 +14,13 @@ Sharing feedback does not grant permission to publish a quote, identity or image
 
 ## Try the flow
 
-1. Follow the [README quick start](../README.md#quick-start-see-the-result) to install the preview. Record the version if readily available; do not send your environment configuration.
-2. Run `reality-first-photo demo --output first-look`. Open `first-look/comparison.png` and identify the three labeled columns. The images are synthetic, not photographs or proof of photographic quality.
-3. Check the synthetic inputs, then run the four-way comparison:
-
-   ```sh
-   reality-first-photo check --input first-look/input --lut first-look/demo_warm.cube --format png
-   reality-first-photo compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
-   ```
-
-4. In an environment that permits normal local-file viewing, open `first-compare/index.html`. Find the four variants, open an exported PNG and inspect the recipe details. The input reference is decoded, color-managed/resized sRGB PNG, not a copy of the original file.
+1. Run the complete README quick start **once** ([English](../README.md#quick-start-see-the-result) / [中文](../README.zh-CN.md#快速开始先看到结果)). It already installs the preview and runs `demo`, `check` and `compare`. If you have completed it, use those existing results; do not rerun into `first-look` or `first-compare`. Record the version if readily available; do not send your environment configuration.
+2. Open the existing `first-look/comparison.png` and identify the three labeled columns. The images are synthetic, not photographs or proof of photographic quality.
+3. Check that the quick start's input check reported ready, then inspect the existing `first-compare/compare.json` locally and confirm its status is `complete`. If either step failed or remained incomplete, use the [recovery guide](TROUBLESHOOTING.md) before continuing; do not count existing files alone as success.
+4. In an environment that permits normal local-file viewing, open the existing `first-compare/index.html`. Find the four variants, open an exported PNG and inspect the recipe details. The input reference is decoded, color-managed/resized sRGB PNG, not a copy of the original file.
 5. Decide whether any route is useful for a task you care about. “None” and “not enough evidence” are welcome; a synthetic demonstration alone may be insufficient to judge your photo workflow.
 
-Choose fresh output names if the suggested folders already exist. If installation, processing or viewing stops, record the step and a redacted error category; do not bypass browser/administrator restrictions or weaken ICC checks. A blocked report view is a blocked view, not successful visual validation.
+For a new attempt, use a fresh working directory or change output names and every dependent input/report path consistently. If installation, processing or viewing stops, record the step and a redacted error category; do not bypass browser/administrator restrictions or weaken ICC checks. A blocked report view is a blocked view, not successful visual validation.
 
 The current managed development environment has not visually verified the HTML in a browser: local navigation returned `ERR_BLOCKED_BY_ADMINISTRATOR`. This guide does not ask you to reproduce or work around that restriction.
 
@@ -71,7 +65,7 @@ The [roadmap](../ROADMAP.md) proposes exploratory gates of 4/5 independent compl
 
 **不要发送照片、派生图、EXIF、私人路径、凭据、完整日志或 JSON 报告。** 仅按意愿分享去除私人信息的简短文字。反馈不等于同意公开姓名、引用或图像；不得主动群发或伪造参与者。
 
-按 README 安装 → 运行 demo 并打开 `comparison.png` → 运行上面的 check 和 compare 命令 → 在允许本地文件访问的环境打开 `index.html`、找到导出 PNG。遇到管理员/浏览器限制就记录“受阻”，不绕过；原图参考也经过解码、ICC 转换和缩放，不是源文件副本。
+只将 [README 快速开始](../README.zh-CN.md#快速开始先看到结果)的整段命令运行**一次**，它已完成安装、demo、check 和 compare；如果已经完成，直接使用现有结果，不再向同名 `first-look` / `first-compare` 重跑。随后打开已有 `comparison.png`，确认先前 check 就绪、`compare.json` 状态为 `complete`，再在允许本地文件访问的环境查看已有 `index.html` 和导出 PNG。失败或未完成时按[故障恢复说明](TROUBLESHOOTING.md)处理；新一轮尝试需新工作目录，或一致更新输出名称及所有依赖路径。遇到管理员/浏览器限制就记录“受阻”，不绕过；原图参考也经过解码、ICC 转换和缩放，不是源文件副本。
 
 可只反馈以下几项：
 

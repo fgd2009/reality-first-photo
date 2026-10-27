@@ -6,9 +6,9 @@ Use only the bundled gradients, chart, shapes and original demonstration LUT. No
 
 ## Prepare a real recording
 
-Install the preview using the [README quick start](../README.md#quick-start-see-the-result), then choose a new scratch directory with no personal files. Use a terminal prompt that does not show a username or private path. Keep notifications and unrelated windows out of the capture. Run the actual installed CLI; do not fabricate terminal output or animate a still image to imply a working UI.
+Complete the [README quick start](../README.md#quick-start-see-the-result) once before recording, or reuse the installation if it is already complete. That quick start also creates its own `first-look` and `first-compare` examples; do not rerun them for this take. Choose a new scratch directory with no personal files. Use a terminal prompt that does not show a username or private path. Keep notifications and unrelated windows out of the capture. Run the actual installed CLI; do not fabricate terminal output or animate a still image to imply a working UI.
 
-The commands below create a fresh `demo-take` and `compare-take`. If either name already exists, choose new names consistently rather than deleting or overwriting an earlier run.
+**Start recording before executing the commands below, and execute each once for that take.** These commands and the shot list describe the same captured run, not a preparation run followed by a second execution. They create a fresh `demo-take` and `compare-take`. For a rehearsal or retake, use a fresh scratch directory or change both output names and all dependent paths consistently; do not delete or overwrite an earlier run.
 
 ```sh
 reality-first-photo demo --output demo-take
@@ -16,7 +16,7 @@ reality-first-photo check --input demo-take/input --lut demo-take/demo_warm.cube
 reality-first-photo compare --input demo-take/input --output compare-take --lut demo-take/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
 ```
 
-Verify `demo-take/demo.json` and `compare-take/compare.json` both say `complete` before recording a successful walkthrough. A file's existence alone is insufficient. `check` must report ready; it checks inputs without exporting. The four comparison folders should each contain three PNGs.
+**After capture, before keeping the clip as a successful walkthrough**, verify that `demo-take/demo.json` and `compare-take/compare.json` both say `complete`. A file's existence alone is insufficient. The captured `check` must report ready; it checks inputs without exporting. The four comparison folders should each contain three PNGs.
 
 ## Shot list
 
@@ -44,7 +44,7 @@ This document grants no permission to publish private images or post externally.
 
 **当前只有分镜与可执行命令，没有录制或发布视频。** README 使用已经生成的静态合成对比图；不能称它为录屏或浏览器视觉验收结果。
 
-先按 README 安装，再在全新的临时工作目录运行上面的三个命令。使用不显示个人用户名和私人路径的终端提示符，不录入通知、无关窗口、私照、EXIF 或商业预设。已有输出目录就换新名字，不覆盖。确认两个 JSON 的状态为 `complete`，并确认检查通过、四路各有三张 PNG 后，才能展示成功流程。
+先将 README 快速开始完成一次；已有安装可直接复用，不为录制重跑 `first-look` / `first-compare`。选择全新的临时工作目录，**先开始录制，再将上面的三个命令各执行一次**；这些命令与分镜描述的是同一次运行，不是先预跑同名输出再重跑录制。排练或重录时换新工作目录，或一致更换两个输出名称和所有依赖路径，不删除或覆盖旧结果。使用不显示个人用户名和私人路径的终端提示符，不录入通知、无关窗口、私照、EXIF 或商业预设。录制后先确认两个 JSON 的状态为 `complete`、检查通过且四路各有三张 PNG，再将该片段保留为成功流程。
 
 25 秒分镜：**0–4 秒实际 demo 命令 → 4–9 秒带合成标识的三列 PNG → 9–13 秒实际 check 结果 → 13–18 秒实际 compare 命令和结果 → 18–25 秒经允许且人工核验的四路 HTML、图片链接与配方详情**。这是剪辑长度目标，不是运行速度承诺；剪切和加速必须说明，不伪造成功输出。
 
