@@ -1,6 +1,6 @@
 # Reality First Photo
 
-**0.1.0a2 离线命令行预览版**：导入受支持的 RGB 图像，转换到编码 sRGB，先进行有边界的自然曝光、白平衡及影调/色彩归一化，再按明确强度应用用户自己的 SDR CUBE LUT，导出 sRGB PNG、JPEG 或 16 位 TIFF。
+**0.1.0a3 离线命令行预览版**：导入受支持的 RGB 图像，转换到编码 sRGB，先进行有边界的自然曝光、白平衡及影调/色彩归一化，再按明确强度应用用户自己的 SDR CUBE LUT，导出 sRGB PNG、JPEG 或 16 位 TIFF。
 
 这是早期 CLI 预览，不是完整照片编辑器，也不宣称经过标定的真实胶片复现。
 
@@ -29,6 +29,33 @@ reality-first-photo demo --output first-look
 
 安装过程需要下载 Python 依赖；图像处理在本地完成，没有遥测、模型调用、API 密钥、账号登录或网络请求。CLI 不调用外部 EXIF 工具，也不读取个人偏好。仓库不包含真实照片、第三方 LUT 或 XMP 预设。
 
+## 比较四条处理路径
+
+完成上面的演示后，可以复用其合成图和原创暖色 LUT：
+
+```sh
+reality-first-photo compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
+```
+
+**用浏览器打开 `first-compare/index.html`**，逐张比较四路 PNG 预览：
+
+| 路径 | 处理内容 |
+| --- | --- |
+| 原图 / 输入参考 | 解码、转换到工作 sRGB、按指定尺寸缩放后导出 PNG；并非源文件的原样副本。 |
+| 仅归一化 | 在输入参考上执行归一化。 |
+| 仅 LUT | 在输入参考上应用所选 LUT，不执行归一化。 |
+| 归一化 + LUT | 先归一化，再应用所选 LUT。 |
+
+报告不会默认选出最佳结果。可以通过图片旁的链接单独打开/保存导出图，并展开详情检查各路强度、实际归一化操作和 ICC 决策。默认归一化强度为 0.6、LUT 强度为 1、预览长边为 2048；可通过 `--normalize-strength`、`--lut-strength` 和 `--max-long-edge` 调整。比较结果固定导出为**附带工作 sRGB ICC 的 8 位 PNG**。
+
+处理自己的图片时，将 `--input`、`--lut` 换为本地路径，并选择新的输出目录。`compare` 必须指定受支持的 LUT。RAW、未知或不受支持的 ICC 输入仍会被拒绝；`--assume-srgb` 仅用于明确声明已确认是编码 sRGB 的无标签像素。
+
+本地报告由 `index.html`、`compare.json` 和四个图片文件夹组成，包含输入文件名及哈希、LUT 信息和派生图像；程序不会上传它们。移动报告时请保留整个文件夹，确保相对图片链接有效。命令不会自动启动浏览器或服务器，只有完整完成的比较才会生成 HTML 报告。
+
+每一路都从同一输入解码后的工作像素独立开始，再量化导出 PNG；不会把参考 PNG 再送入另一条处理路径。输入符号链接（包括文件夹内的链接）、已有输出路径和输入树内的输出都会被拒绝。程序在各路之间和完成前复核受支持输入的名称、内容及 LUT 字节；检测到变化则保留失败记录，不生成成功页面。这是变化检测，不是不可变文件快照。
+
+Python 调用可使用 `reality_first_normalization.compare.run_comparison(source, output, lut_path, ...)`，路径参数使用 `Path`。成功返回 0，处理失败返回 2，取消返回 130；前置参数或路径不合法时，会在创建输出前抛出 `ValueError` 或 `OSError`。
+
 ## 处理自己的图像
 
 ```sh
@@ -47,7 +74,7 @@ reality-first-photo --input /path/to/tagged-images --output /path/to/new-output 
 | --- | --- |
 | 输出目录已经存在 | 换用新目录，例如 `--output first-look-2`，已有输出会保留。 |
 | 新输入缺少 ICC，或 ICC 无效 | 在可信色彩管理工具中重新导出带标签的 RGB sRGB。仅当无标签像素已确认是编码 sRGB 时使用 `--assume-srgb`；它不能绕过损坏的 ICC。 |
-| 找不到 CUBE LUT | 更正 `--lut` 路径，指向自己的受支持 CUBE 文件。只有希望仅做归一化时才省略 `--lut`。 |
+| 找不到 CUBE LUT | 更正 `--lut` 路径，指向自己的受支持 CUBE 文件。普通图像处理命令可在仅需归一化时省略 `--lut`；`compare` 必须指定该参数。 |
 
 ## 支持范围与限制
 
@@ -76,7 +103,7 @@ python -m build
 
 原有 `--input` / `--output` 图像处理命令继续可用。在源码目录运行 `python -m examples.generate_demo demo-assets`，仍可只生成原始合成图和示例 LUT，不执行处理。
 
-[CI 工作流](.github/workflows/ci.yml) 使用 Ubuntu / Python 3.12 运行当前候选测试，构建软件包，在独立环境安装 wheel，并从源码目录之外运行完整演示；不会自动发布到 PyPI。当前执行结果和未验证项见 [VALIDATION.md](VALIDATION.md)。历史大型恢复副本的测试数不计入此仓库覆盖数。
+[CI 工作流](.github/workflows/ci.yml) 使用 Ubuntu / Python 3.12 运行当前候选测试，构建软件包，在独立环境安装 wheel，并从源码目录之外运行完整演示和四路比较；不会自动发布到 PyPI。当前执行结果和未验证项见 [VALIDATION.md](VALIDATION.md)。历史大型恢复副本的测试数不计入此仓库覆盖数。
 
 ## 许可
 

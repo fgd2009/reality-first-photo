@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from functools import lru_cache
+import hashlib
 from pathlib import Path
 import shlex
 
@@ -18,6 +18,7 @@ class CubeLut:
     table: np.ndarray
     domain_min: tuple[float, float, float]
     domain_max: tuple[float, float, float]
+    source_sha256: str = ""
 
 
 def resolve_asset_path(path: str | Path) -> Path:
@@ -27,7 +28,6 @@ def resolve_asset_path(path: str | Path) -> Path:
     return Path(__file__).resolve().parents[1] / p
 
 
-@lru_cache(maxsize=32)
 def load_cube_lut(path: str) -> CubeLut:
     lut_path = resolve_asset_path(path)
     if not lut_path.exists():
@@ -40,7 +40,8 @@ def load_cube_lut(path: str) -> CubeLut:
     rows: list[list[float]] = []
 
     try:
-        lines = lut_path.read_text(encoding="utf-8").splitlines()
+        source_bytes = lut_path.read_bytes()
+        lines = source_bytes.decode("utf-8").splitlines()
     except UnicodeDecodeError as exc:
         raise ValueError("CUBE must contain valid UTF-8 text") from exc
     declarations: set[str] = set()
@@ -107,6 +108,7 @@ def load_cube_lut(path: str) -> CubeLut:
         table=table,
         domain_min=domain_min,
         domain_max=domain_max,
+        source_sha256=hashlib.sha256(source_bytes).hexdigest(),
     )
 
 

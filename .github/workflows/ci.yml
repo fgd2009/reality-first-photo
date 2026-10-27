@@ -55,3 +55,30 @@ jobs:
               assert image.mode == "RGB"
               assert image.info.get("icc_profile")
           PY
+      - name: Run packaged four-way comparison
+        run: |
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-venv/bin/reality-first-photo" compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
+          "$RUNNER_TEMP/wheel-venv/bin/python" -I - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image
+
+          report_root = Path("first-compare")
+          report = json.loads((report_root / "compare.json").read_text())
+          assert report["kind"] == "four_way_comparison"
+          assert report["status"] == "complete"
+          assert report["format"] == "png"
+          assert len(report["items"]) == 3
+          assert (report_root / "index.html").is_file()
+          assert (report_root / "index.html").stat().st_size > 0
+          for recipe in ("original", "normalized", "lut_only", "normalized_lut"):
+              images = list((report_root / recipe).rglob("*.png"))
+              assert len(images) == 3
+              for path in images:
+                  with Image.open(path) as image:
+                      image.load()
+                      assert image.format == "PNG"
+                      assert image.mode == "RGB"
+                      assert image.info.get("icc_profile")
+          PY

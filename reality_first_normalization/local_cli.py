@@ -23,7 +23,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Local sRGB normalization, then your own CUBE LUT. No network or model calls.",
         epilog="First time? Run: reality-first-photo demo --output first-look. "
-               "This creates synthetic inputs, exports and a labelled comparison.png; no photos or LUT purchase needed.",
+               "This creates synthetic inputs, exports and a labelled comparison.png; no photos or LUT purchase needed. "
+               "Compare your own input in four ways: reality-first-photo compare --help.",
     )
     p.add_argument("--input", type=Path, required=True, help="Tagged RGB file or folder; RAW is unsupported.")
     p.add_argument("--output", type=Path, required=True, help="New output directory; existing directories are never overwritten.")
@@ -36,36 +37,59 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def run(args: argparse.Namespace) -> int:
-    source = args.input.resolve()
-    output = args.output.resolve()
-    if not source.exists():
-        raise ValueError(f"Input does not exist: {source}. Check --input, or try 'reality-first-photo demo --output first-look'.")
-    if args.max_long_edge < 0:
-        raise ValueError("--max-long-edge must be nonnegative")
-    if output.exists():
-        raise ValueError("Output directory already exists; choose a new directory (no overwrite)")
-    if source.is_dir() and (output == source or source in output.parents):
-        raise ValueError("Output directory must be outside the input tree")
+def discover_inputs(source: Path) -> list[Path]:
+    """Read-only enumeration shared by normal export and comparison workflows."""
+    if source.is_symlink():
+        raise ValueError("Input symlinks are unsupported; choose the actual file or folder")
     if source.is_dir():
-        candidates = sorted(p for p in source.rglob("*") if p.is_file())
+        entries = sorted(source.rglob("*"))
+        if any(p.is_symlink() for p in entries):
+            raise ValueError("Input tree contains a symlink; use regular input files and folders")
+        candidates = [p for p in entries if p.is_file()]
         raw_files = [p for p in candidates if p.suffix.lower() in RAW_EXTS]
         if raw_files:
             raise ValueError(f"RAW/DNG is unavailable; input folder contains {raw_files[0].relative_to(source)}")
         files = [p for p in candidates if p.suffix.lower() in SUPPORTED_EXTS]
-    else:
+    elif source.is_file():
         files = [source]
+    else:
+        raise ValueError(f"Input must be an existing regular file or folder: {source}")
     if not files or any(p.suffix.lower() not in SUPPORTED_EXTS for p in files):
         raise ValueError("No supported RGB inputs; RAW/DNG is unavailable")
-    lut = load_cube_lut(str(args.lut.resolve())) if args.lut else None
-    ext = {"tiff": ".tif", "png": ".png", "jpeg": ".jpg"}[args.format]
-    names = [(p.relative_to(source) if source.is_dir() else Path(p.name)).with_suffix(ext) for p in files]
+    return files
+
+
+def plan_inputs(input_path: Path, output_path: Path, max_long_edge: int, extension: str = ".png"):
+    """Validate paths before creating any output, including dangling symlinks."""
+    if input_path.is_symlink():
+        raise ValueError("Input symlinks are unsupported; choose the actual file or folder")
+    source = input_path.resolve()
+    if not source.exists():
+        raise ValueError(f"Input does not exist: {source}. Check --input, or try 'reality-first-photo demo --output first-look'.")
+    if max_long_edge < 0:
+        raise ValueError("--max-long-edge must be nonnegative")
+    if output_path.exists() or output_path.is_symlink():
+        raise ValueError("Output directory already exists; choose a new directory (no overwrite)")
+    output = output_path.resolve()
+    if source.is_dir() and (output == source or source in output.parents):
+        raise ValueError("Output directory must be outside the input tree")
+    files = discover_inputs(source)
+    names = [(p.relative_to(source) if source.is_dir() else Path(p.name)).with_suffix(extension) for p in files]
     if len(set(str(p).casefold() for p in names)) != len(names):
         raise ValueError("Input names collide after output-format conversion")
+    if any(p.parts[0].casefold() == "manifest.json" for p in names):
+        raise ValueError("Input folder name conflicts with the reserved manifest.json output")
+    return source, output, files, names
+
+
+def run(args: argparse.Namespace) -> int:
+    ext = {"tiff": ".tif", "png": ".png", "jpeg": ".jpg"}[args.format]
+    source, output, files, names = plan_inputs(args.input, args.output, args.max_long_edge, ext)
+    lut = load_cube_lut(str(args.lut.resolve())) if args.lut else None
     manifest = {
         "status": "running", "working_space": "encoded sRGB", "network": "disabled_by_design",
         "lut_name": args.lut.name if args.lut else None,
-        "lut_sha256": hashlib.sha256(args.lut.read_bytes()).hexdigest() if args.lut else None,
+        "lut_sha256": lut.source_sha256 if lut else None,
         "normalize_strength": args.normalize_strength, "lut_strength": args.lut_strength,
         "format": args.format, "items": [],
     }
@@ -115,6 +139,9 @@ def main(argv=None) -> int:
     if argv[:1] == ["demo"]:
         from .demo import main as demo_main
         return demo_main(argv[1:])
+    if argv[:1] == ["compare"]:
+        from .compare import main as compare_main
+        return compare_main(argv[1:])
     if not argv:
         build_parser().print_help()
         return 2

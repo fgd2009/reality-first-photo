@@ -1,6 +1,6 @@
 # Reality First Photo
 
-An offline command-line preview for natural image normalization and your own SDR CUBE LUTs. Version **0.1.0a2** imports supported RGB images, converts them to encoded sRGB, applies bounded exposure/white-balance and tone/color normalization, then applies your selected LUT at an explicit strength. Export as sRGB PNG, JPEG or 16-bit TIFF.
+An offline command-line preview for natural image normalization and your own SDR CUBE LUTs. Version **0.1.0a3** imports supported RGB images, converts them to encoded sRGB, applies bounded exposure/white-balance and tone/color normalization, then applies your selected LUT at an explicit strength. Export as sRGB PNG, JPEG or 16-bit TIFF.
 
 This is an early CLI preview, not a complete photo editor or a calibrated physical-film emulator.
 
@@ -29,6 +29,33 @@ The command works from any directory after installation. It prints the result pa
 
 Installation downloads Python dependencies. Image processing runs locally without telemetry, model calls, API keys, account login or network access. The CLI does not invoke an external EXIF helper or read personal preference stores. No photographs, third-party LUTs or XMP presets are included.
 
+## Compare four processing routes
+
+After the demo above, reuse its synthetic inputs and original warm LUT:
+
+```sh
+reality-first-photo compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
+```
+
+**Open `first-compare/index.html` in your browser** to compare four PNG previews for each input:
+
+| Route | Processing |
+| --- | --- |
+| Original / input reference | Decode, convert to working sRGB and resize as requested, then export PNG; this is not a source-file copy. |
+| Normalized | Apply normalization to the decoded working-space pixels. |
+| LUT only | Apply the selected LUT to the decoded working-space pixels without normalization. |
+| Normalized + LUT | Normalize first, then apply the selected LUT. |
+
+Each route starts independently from the same decoded input before PNG quantization; the reference PNG is not fed back into another route. The comparison does not select a best result. Use the image links to open/save individual exports and expand the details to inspect recipe strengths, actual normalization operations and ICC decisions. The default normalization strength is 0.6, LUT strength is 1 and preview long edge is 2048; adjust those with `--normalize-strength`, `--lut-strength` and `--max-long-edge`. Comparison output is always **8-bit PNG with the working sRGB ICC**.
+
+For your own images, replace `--input` and `--lut` with local paths, and choose a new output directory. `compare` requires a supported LUT. RAW and unknown or unsupported ICC inputs remain rejected; `--assume-srgb` is only a deliberate declaration for untagged pixels already known to be encoded sRGB.
+
+Input symlinks (including links inside an input folder), existing output paths and outputs inside the input tree are rejected. Supported input names/content and LUT bytes are checked between routes and before completion; a detected change leaves a failed report without a success page. This is change detection, not an immutable file snapshot.
+
+The local report consists of `index.html`, `compare.json` and the four image folders. It contains input filenames and hashes, LUT metadata and derived images; the tool does not upload it. Keep the folder together so its relative image links continue to work. The command does not launch a browser or start a server, and only a completed comparison produces the HTML report.
+
+Python callers can use `reality_first_normalization.compare.run_comparison(source, output, lut_path, ...)` with `Path` arguments. It returns 0 on success, 2 on a processing failure, or 130 on cancellation; invalid preflight options/paths raise `ValueError` or `OSError` before creating output.
+
 ## Process your own images
 
 ```sh
@@ -47,7 +74,7 @@ Choose a **new output directory** for each run. Existing directories are rejecte
 | --- | --- |
 | Output directory already exists | Pick a new directory, for example `--output first-look-2`. Existing output is preserved. |
 | A new input has missing or invalid ICC | Re-export as tagged RGB sRGB in a trusted color-managed tool. Use `--assume-srgb` only for untagged pixels you know are already encoded sRGB; it cannot bypass an invalid ICC. |
-| CUBE LUT not found | Correct the `--lut` path to your own supported CUBE file. Omit `--lut` only if you want normalization without a LUT. |
+| CUBE LUT not found | Correct the `--lut` path to your own supported CUBE file. For the standard image-processing command, omit `--lut` only if you want normalization alone; `compare` requires it. |
 
 ## Supported inputs and limits
 
@@ -76,7 +103,7 @@ python -m build
 
 The existing `--input` / `--output` command remains available for image processing. From a source checkout, `python -m examples.generate_demo demo-assets` still generates the original synthetic inputs and LUTs without processing them.
 
-The [CI workflow](.github/workflows/ci.yml) runs the candidate tests on Ubuntu with Python 3.12, builds the package, installs its wheel in a separate environment and runs the complete demo outside the source checkout. It does not publish to PyPI. See [VALIDATION.md](VALIDATION.md) for the current executed checks and remaining limits; historical results from a larger recovery tree are not additional test coverage for this repository.
+The [CI workflow](.github/workflows/ci.yml) runs the candidate tests on Ubuntu with Python 3.12, builds the package, installs its wheel in a separate environment and runs the complete demo and four-way comparison outside the source checkout. It does not publish to PyPI. See [VALIDATION.md](VALIDATION.md) for the current executed checks and remaining limits; historical results from a larger recovery tree are not additional test coverage for this repository.
 
 ## License and dependencies
 

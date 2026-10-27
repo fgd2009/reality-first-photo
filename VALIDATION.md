@@ -1,44 +1,47 @@
-# Validation record — 0.1.0a2 CLI preview
+# Validation record — 0.1.0a3 CLI preview
 
-Validated on **2026-10-27**, Linux x86_64, Python **3.12.14**. Runtime dependencies remain NumPy 2.4.6, Pillow 12.2.0 and tifffile 2026.5.15; tests use pytest 9.0.3. The build frontend is build 1.6.1, with isolated setuptools 84.2.1 builds. Python >=3.12 is required.
+Validated on **2026-10-27**, Linux x86_64, Python **3.12.14**. Runtime versions remain NumPy 2.4.6, Pillow 12.2.0 and tifffile 2026.5.15; tests use pytest 9.0.3. Package builds use build 1.6.1 and isolated setuptools 84.2.1. Python >=3.12 is required.
 
-## This iteration: one-command first run
+## Scope and acceptance
 
-The previous quickstart required a source checkout, test dependencies and separate generation/processing commands, and did not provide a labeled comparison. Version 0.1.0a2 adds `reality-first-photo demo --output first-look`, usable from the installed wheel outside a checkout. It generates original synthetic pixels and LUTs, runs the existing CLI pipeline, and produces separate exports plus `comparison.png`.
+This iteration adds a formal offline `compare` command and Python `run_comparison` function. Each input is exported through four independent recipes: input reference, normalization only, LUT only, and normalization followed by LUT. A local `index.html` and `compare.json` explain the settings and link the PNG exports. No result is scored or selected as best.
 
-The acceptance scope is limited to this first-run workflow, explanatory manifests, bilingual documentation and compatibility. No normalization parameters, LUT interpolation, ICC policy, RAW support or GUI were changed.
+The existing export pipeline is reused. No color algorithm, normalization parameter, CUBE interpolation, ICC policy, RAW support or GUI is added or changed. The original `demo` and standard image-processing commands remain supported. Public tests and examples use generated pixels and original synthetic LUTs only; no user photographs, EXIF or private paths were obtained or published for this work.
 
-| Check | Current result |
+| Check | Result |
 | --- | --- |
-| Complete regression suite | **67 passed, 0 failed, 0 skipped**, 1.02 seconds |
-| Offline test audit | 0 socket/child-process attempts; 0 blocked attempts |
-| Source archive and wheel build | Passed; wheel built from the source distribution |
-| Separate virtual environment wheel installation | Passed; `pip check` found no broken requirements |
-| Installed `demo` command outside the checkout | Passed; 3 generated inputs, 6 PNG exports, 1 comparison image |
-| Export dimensions, ICC and source hashes | Passed: exports 257×97; exact working ICC; original input hashes unchanged |
-| Comparison dimensions and visual inspection | Passed: 851×583; labels readable; synthetic-only notice visible |
-| Comparison pixel accuracy | All 9 panels exactly equal the corresponding input/export PNG pixels |
-| Repeat run / existing file or directory | Rejected without changing existing contents |
-| Failure and cancellation | Nonzero processing, interrupt and comparison failures retain labeled partial state; never report success |
-| Legacy command / source example | Existing `--input` / `--output` and `python -m examples.generate_demo` remain usable |
+| Complete regression suite | **113 passed, 0 failed, 0 skipped**, 1.53 seconds |
+| Offline audit around the complete suite | 0 socket/child-process attempts; 0 blocked attempts |
+| Source archive and wheel build | Passed; wheel built from source distribution |
+| Separate environment wheel installation | Passed; `pip check` found no broken requirements |
+| Installed four-way CLI outside checkout | Passed: 3 synthetic inputs, 12 PNG exports, complete JSON and HTML |
+| Input and LUT fingerprints | Preserved; all four manifests match the same source hashes and selected LUT bytes |
+| Dimensions, export type, ICC | Passed: fixture exports 257×97, RGB8 PNG with exact working ICC |
+| Numerical routes and zero strengths | Passed against independent affine LUT equations and corresponding equality cases |
+| Output and input path protection | Existing file/dir/link, dangling links, input-tree output aliases and name collisions rejected before output creation |
+| HTML structure, escaping and links | Passed for Unicode, quotes, ampersands, angle brackets, spaces, #, ?, %, backslashes and nested duplicate basenames |
+| Mid-run changes / partial failure / cancellation | Failed or cancelled JSON retained; no successful index page remains |
+| Local browser visual opening | **Blocked by environment policy**: Chromium rejected `file://` navigation with `ERR_BLOCKED_BY_ADMINISTRATOR` |
 
-The 67 tests include the existing 55 tests plus 12 onboarding regressions. These counts are not added to older, overlapping recovery-tree results.
+The 113-test total includes the previous 67 tests and 46 new comparison/provenance regressions. Historical test runs are not added to this total.
 
-## Processing and evidence
+## Four-route correctness and provenance
 
-The demo compares three columns: generated **Input**, **Normalized** (strength 0.6), and **Normalized + warm LUT** (the same normalization followed by the original affine demonstration LUT at strength 0.5). Both processed branches start from the same original inputs; the styled branch does not normalize an already-normalized PNG again. An independent affine calculation checks the styled output against the normalized output within 8-bit quantization tolerance (1/255 + 1e-7).
+All four routes start independently from the original input, with the same ICC policy, preview size and explicit untagged-sRGB assumption. The input reference is decoded, color-converted/resized working sRGB exported as PNG; it is not a byte-for-byte copy of the source file. Processing uses the working pixels before export quantization, rather than feeding a reference PNG back into another route.
 
-The comparison embeds the exact working sRGB ICC and pastes each exported panel without resizing or further image processing. Text uses Pillow's bundled font; no system font, external image, model or paid service is required. The README preview is generated by this same command and was visually inspected. It shows synthetic gradients, a color chart and geometry, not real photographs or proof of photographic quality.
+Independent synthetic checks cover normalization-only, LUT-only and normalization-then-LUT output. A separately written affine equation verifies the original warm demonstration LUT within PNG quantization tolerance. With normalization or LUT strength zero, the appropriate pairs become equal. Source hashes, dimensions, per-route normalization operations and ICC decisions are checked.
 
-Each image's manifest now retains the normalization result's `operations`, including exposure scale and RGB white-balance gains. When normalization is off, `applied` is false and `operations` is null. These are calculated processing parameters, not measured photo quality or a physical film model. Existing ICC decisions, input hashes, LUT hash and explicit strengths remain recorded.
+LUT provenance was repaired without changing its rendering algorithm: the loader now parses and hashes the same bytes, without a stale path-only cache. Tests replace a previously loaded LUT at the same path and change its file after a read; the rendered table and recorded SHA-256 remain tied to the bytes actually parsed.
 
-The final local regression run disabled automatic pytest plugins and bytecode writing. A Python audit hook rejected socket and child-process events; none occurred. This describes the test harness, not a product OS sandbox. Dependency installation/build needs network access; image processing has no network, telemetry or model-call implementation.
+Comparison fingerprints supported input names/content and LUT bytes between routes and before completion. Tests cover modification, addition, deletion, renaming, a same-content LUT switched to a symlink, and source changes during HTML rendering. Changes fail the comparison instead of claiming that inconsistent outputs belong together. This is detection between stages, not file locking or an immutable snapshot.
 
-## Preserved color regressions
+## Local report safety
 
-The suite continues to check red-fastest CUBE layout with an independent flat scalar/trilinear reference, narrow/non-default domains, strict unsupported-directive rejection, missing LUT failure, explicit LUT strengths, floating-point resize precision, TIFF16 roundtrips and real ICC pixel conversion. Generated linear-RGB code 128 converts to encoded sRGB near 188 rather than being relabeled unchanged.
+The HTML renderer is a pure function. It requires a complete report, escapes all dynamic text/JSON and separately percent-encodes relative image URLs. Image links must remain beneath their fixed recipe folder and end in PNG. Tests confirm that hostile synthetic names do not create scripts, event handlers, remote URLs, query strings or fragments. The document has a restrictive content-security policy and uses no JavaScript, external fonts, network assets or server.
 
-Unsupported modes/depths, invalid ICC, alpha/transparency, APNG/multi-frame input, packed or compressed TIFF, format/extension mismatches and RAW remain rejected. Existing output directories are never overwritten. Cancellation is injected as `KeyboardInterrupt`; a physical keyboard or native GUI has not been validated.
+Only a complete comparison writes the final HTML page; failures and cancellation preserve partial outputs and explicit JSON status. All generated image links are checked against real local output files, and those PNGs are decoded and inspected. Actual browser rendering could not be verified in this managed execution environment because local-file navigation was blocked. No browser policy, network setting or server workaround was used; cross-browser behavior is not claimed.
+
+Reports stay on the user's filesystem and contain filenames, hashes, calculated operations, ICC decisions and derived images. Processing skips external EXIF extraction. There is no upload, telemetry, model call, quality score or automatic best-image choice.
 
 ## Reproduce
 
@@ -50,14 +53,19 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p no:cacheprovider tests
 python -m build
 python -m pip check
 reality-first-photo demo --output first-look
+reality-first-photo compare --input first-look/input --output first-compare --lut first-look/demo_warm.cube --normalize-strength 0.6 --lut-strength 1
 ```
 
-The [CI workflow](.github/workflows/ci.yml) runs the suite, builds the package, installs the wheel into a separate environment, changes to a directory outside the source checkout, and runs the packaged demo. It checks both export manifests and the comparison image. [GitHub Actions](https://github.com/fgd2009/reality-first-photo/actions) records the outcome for each exact commit; local checks are not a substitute for that remote result.
+The [CI workflow](.github/workflows/ci.yml) runs the complete suite, builds packages, installs the wheel in a separate environment, then runs both the synthetic demo and four-way comparison outside the checkout. It checks complete reports and all 12 comparison exports. [GitHub Actions](https://github.com/fgd2009/reality-first-photo/actions) records the outcome for each exact commit.
 
-## Limits and prior release
+The final local suite disabled automatic pytest plugins and bytecode writing. A Python audit hook rejected socket and child-process events; none occurred. This is a test-harness check, not a product OS sandbox. Installing dependencies and building packages can use the network; processing does not.
 
-Not validated: real photographs, real RAW, commercial LUTs/XMP, physical film accuracy, arbitrary high-depth ICC conversion, large-image memory/performance, native GUI, Windows/macOS application behavior, native installers, signing or PyPI publication. The `py3-none-any` wheel tag is a packaging tag, not a cross-platform test result. The existing highlight-rolloff helper has no separate rolloff effect on bounded SDR values; this iteration leaves that curve unchanged.
+## Preserved limits and prior evidence
 
-The public 0.1.0a1 source was validated at `3228aded8dce7815d68e5ae94cbfffc771156449`, followed by documentation commit `c582634494eb3f46de3e6859c5fc194bc0f25218`. Its [CI passed](https://github.com/fgd2009/reality-first-photo/actions/runs/40477338677), with 55 tests, package builds and an installed-wheel synthetic export. Its local 15-file synthetic export inspection is prior evidence, not new real-photo validation. The earlier macOS 32-test result and larger recovery tree's 100-test result are historical and not additive coverage.
+The full suite retains red-fastest CUBE, float-resize precision, TIFF16, real ICC pixel conversion, missing LUT, invalid/unknown ICC and unsupported-format regressions. RAW, alpha/transparency, multi-frame input and other unsupported formats still fail explicitly. Existing source files are read without modification; existing output paths are rejected.
 
-The repository is public under MIT. GitHub Release attachment upload previously returned 401 and is not retried by this iteration. No credentials, account permissions, network settings, other business repositories or external promotional messages were changed.
+This public validation does not establish photographic quality, physical film accuracy, real RAW behavior, commercial LUT compatibility, arbitrary high-depth ICC conversion, large-image performance, native GUI, Windows/macOS application behavior, native installers, signing or PyPI publication. The existing highlight-rolloff helper has no separate rolloff effect on bounded SDR values; that curve remains unchanged. The `py3-none-any` wheel tag does not prove cross-platform testing.
+
+The previous 0.1.0a2 release at `a065c860e576c73760b138e4e66b6079389d0a15` had [successful CI](https://github.com/fgd2009/reality-first-photo/actions/runs/40479919356), 67 tests and a verified installed demo. Earlier 55-, 32- and 100-test records overlap and are not additive coverage.
+
+The project remains MIT-licensed. Previously denied GitHub Release attachment upload was not retried. No credentials, permissions, other business repositories or external promotional messages were changed.
