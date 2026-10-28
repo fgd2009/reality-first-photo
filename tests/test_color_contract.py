@@ -4,10 +4,11 @@ import itertools
 import struct
 import zlib
 from io import BytesIO
-from pathlib import Path
+
 import numpy as np
 import pytest
 from PIL import Image, ImageCms
+
 from reality_first_normalization import io
 from reality_first_normalization.lut import apply_cube_lut, load_cube_lut
 
@@ -24,7 +25,7 @@ def linear_rgb_icc():
     count=struct.unpack_from('>I',data,128)[0]
     seen=set()
     for index in range(count):
-        tag,offset,size=struct.unpack_from('>4sII',data,132+12*index)
+        tag, offset, _size = struct.unpack_from('>4sII', data, 132 + 12 * index)
         if tag in {b'rTRC',b'gTRC',b'bTRC'}:
             assert data[offset:offset+4]==b'para' and struct.unpack_from('>H',data,offset+8)[0]==3
             struct.pack_into('>5i',data,offset+12,65536,65536,0,65536,0)
@@ -121,7 +122,7 @@ def test_high_depth_same_name_different_transfer_profile_rejected(tmp_path):
     assert source_description==working_description
     p=tmp_path/'linear16.tiff'
     io.tifffile.imwrite(p,np.ones((3,4,3),dtype=np.uint16)*32768,photometric='rgb',iccprofile=src)
-    with pytest.raises(io.ColorManagementError,match='高位深'):io.load_image(p,assume_srgb=True)
+    with pytest.raises(io.ColorManagementError,match='High-depth TIFF'):io.load_image(p,assume_srgb=True)
 
 
 def test_untagged_tiff16_explicit_assumption_and_range(tmp_path):
@@ -136,7 +137,7 @@ def test_untagged_tiff16_explicit_assumption_and_range(tmp_path):
 
 def test_tiff_export_never_silently_falls_back_to_8bit(tmp_path,monkeypatch):
     monkeypatch.setattr(io,'tifffile',None)
-    with pytest.raises(io.ColorManagementError,match='不会降为 8 位'):
+    with pytest.raises(io.ColorManagementError,match='8-bit'):
         io.save_image(np.zeros((3,4,3),dtype=np.float32),tmp_path/'out.tiff')
 
 
@@ -156,13 +157,13 @@ def test_png16_rejected_before_pillow_can_reduce_precision(tmp_path):
     def chunk(kind,data):return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
     data=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',1,1,16,2,0,0,0))+chunk(b'IDAT',zlib.compress(b'\0'+struct.pack('>HHH',1000,2000,3000)))+chunk(b'IEND',b'')
     p=tmp_path/'rgb16.png';p.write_bytes(data)
-    with pytest.raises(io.ColorManagementError,match='高位深 PNG'):io.load_image(p,assume_srgb=True)
+    with pytest.raises(io.ColorManagementError,match='High-depth PNG'):io.load_image(p,assume_srgb=True)
 
 
 def test_raw_explicitly_unavailable_without_invoking_decoder(tmp_path,monkeypatch):
     def forbidden(*args,**kwargs):raise AssertionError('must not decode or read EXIF')
     monkeypatch.setattr(io,'read_exif',forbidden)
-    with pytest.raises(io.ColorManagementError,match='暂不支持 RAW'):io.load_image(tmp_path/'generated.dng')
+    with pytest.raises(io.ColorManagementError,match='RAW is unsupported'):io.load_image(tmp_path/'generated.dng')
 
 
 @pytest.mark.parametrize('mode,extra',[('RGBA',{}),('RGB',{'transparency':(0,0,0)})])
@@ -179,7 +180,7 @@ def test_misnamed_content_cannot_bypass_decoder_contract(tmp_path,actual):
         Image.new('RGB',(3,3)).save(p,format='PNG',icc_profile=io.working_srgb_icc())
     else:
         io.tifffile.imwrite(p,np.ones((3,3,3),dtype=np.uint16),photometric='rgb',iccprofile=io.working_srgb_icc())
-    with pytest.raises(io.ColorManagementError,match='格式与扩展名'):io.load_image(p)
+    with pytest.raises(io.ColorManagementError,match='does not match its extension'):io.load_image(p)
 
 
 def test_packed_tiff_bit_depth_is_rejected_before_decode(tmp_path):
@@ -190,7 +191,7 @@ def test_packed_tiff_bit_depth_is_rejected_before_decode(tmp_path):
     with io.tifffile.TiffFile(p) as tif:
         tag=tif.pages[0].tags['BitsPerSample'];offset=tag.valueoffset;count=tag.count;endian=tif.byteorder
     data=bytearray(p.read_bytes());struct.pack_into(endian+'H'*count,data,offset,*([12]*count));p.write_bytes(data)
-    with pytest.raises(io.ColorManagementError,match='实际位深'):io.load_image(p)
+    with pytest.raises(io.ColorManagementError,match='bit depth'):io.load_image(p)
 
 
 @pytest.mark.parametrize('outside',[-.1,1.1])
@@ -220,7 +221,7 @@ def test_compressed_tiff_declaration_is_rejected_before_decode(tmp_path):
     data = bytearray(p.read_bytes())
     data[offset:offset + 2] = struct.pack(byteorder + "H", 5)
     p.write_bytes(data)
-    with pytest.raises(io.ColorManagementError, match="未压缩 TIFF"):
+    with pytest.raises(io.ColorManagementError, match="uncompressed TIFF"):
         io.load_image(p, read_metadata=False)
 
 
@@ -241,5 +242,5 @@ def test_animated_png_rejected_instead_of_silently_selecting_first_frame(tmp_pat
                icc_profile=io.working_srgb_icc())
     with Image.open(p) as image:
         assert image.n_frames == 2
-    with pytest.raises(io.ColorManagementError, match="多帧"):
+    with pytest.raises(io.ColorManagementError, match="Multi-frame"):
         io.load_image(p, read_metadata=False)

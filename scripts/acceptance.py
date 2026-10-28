@@ -9,12 +9,12 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import shutil
 import signal
 import subprocess
 import tempfile
 import time
+from pathlib import Path
 
 
 def hashes(folder):
@@ -30,14 +30,14 @@ def accept(python: str, root: Path) -> None:
     prefix = [python, "-I", "-m", "reality_first_normalization.local_cli"]
 
     def cli(*args, code=0):
-        result = subprocess.run([*prefix, *map(str, args)], cwd=root, capture_output=True, text=True, timeout=60)
+        result = subprocess.run([*prefix, *map(str, args)], check=False, cwd=root, capture_output=True, text=True, timeout=60)
         assert result.returncode == code, (result.returncode, result.stdout, result.stderr)
         return result
 
     # -I and a cwd outside checkout must still import the separately installed package.
     subprocess.run([python, "-I", "-c",
-                    "import pathlib,sys,reality_first_normalization as p; "
-                    "assert not pathlib.Path(p.__file__).resolve().is_relative_to(pathlib.Path(sys.argv[1]))",
+                    ("import pathlib,sys,reality_first_normalization as p; "
+                     "assert not pathlib.Path(p.__file__).resolve().is_relative_to(pathlib.Path(sys.argv[1]))"),
                     str(Path(__file__).resolve().parents[1])], cwd=root, check=True, timeout=30)
     cli("demo", "--output", "demo")
     inputs = root / "demo" / "input"
@@ -148,6 +148,20 @@ raise SystemExit(local_cli.main(["--input", sys.argv[1], "--output", sys.argv[2]
         print("PASS: real POSIX SIGINT cancellation and SIGTERM incomplete checkpoint")
     else:
         print("NOT RUN: POSIX signal checks on this platform")
+    untagged = root / "phone-untagged.jpg"
+    subprocess.run([python, "-I", "-c",
+                    ("import sys\nfrom PIL import Image\n"
+                     "Image.new('RGB', (8, 6), (40, 80, 120)).save(sys.argv[1], 'JPEG')\n"),
+                    str(untagged)], cwd=root, check=True, timeout=30)
+    assumed = cli("--input", untagged, "--output", "assumed-srgb", "--format", "png", "--normalize-strength", "0")
+    assumed_state = read_json(root / "assumed-srgb" / "manifest.json")
+    assert assumed_state["status"] == "complete" and assumed_state["untagged_policy"] == "default_assume"
+    assert assumed_state["items"][0]["color"]["ColorConversion"] == "default_assume_srgb_untagged_rgb8"
+    assert assumed_state["items"][0]["color"]["UntaggedAssumption"] == "default"
+    assert "assuming encoded sRGB" in assumed.stderr
+    cli("--input", untagged, "--output", "strict-untagged", "--strict-color", "--format", "png", code=2)
+    strict_state = read_json(root / "strict-untagged" / "manifest.json")
+    assert strict_state["status"] == "failed" and "ICC" in strict_state["error"]
     assert hashes(inputs) == source_hashes
     assert hashlib.sha256(lut.read_bytes()).hexdigest() == lut_hash
     print("PASS: installed demo → check → compare → TIFF export; partial failure, repeat refusal and new-directory retry")

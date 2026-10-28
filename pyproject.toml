@@ -30,3 +30,16 @@ reality_first_normalization = ["data/*.icc", "data/style_profiles/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+# isinstance checks raise ValueError because the CLI and Python API catch ValueError.
+# TypeError would escape that contract.
+ignore = ["TRY004"]
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["reality_first_normalization"]
+warn_unused_configs = true

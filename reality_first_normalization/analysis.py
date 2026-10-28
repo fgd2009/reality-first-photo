@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -10,7 +11,7 @@ from .regions import RegionMasks, detect_regions, summarize_regions
 
 @dataclass(frozen=True)
 class ImageAnalysis:
-    metrics: dict[str, float | str | list[float] | dict[str, float]]
+    metrics: dict[str, Any]
     masks: RegionMasks
 
 
@@ -57,7 +58,7 @@ def _masked_luma_range(arr: np.ndarray, mask: np.ndarray) -> list[float]:
     return [float(np.percentile(values, 5)), float(np.percentile(values, 95))]
 
 
-def _scene_preservation_score(metrics: dict[str, float | str | list[float] | dict]) -> float:
+def _scene_preservation_score(metrics: dict[str, Any]) -> float:
     warmth = abs(float(metrics["temperature_tendency_score"]))
     neutral_ratio = float(metrics["neutral_region"]["pixel_ratio"])
     skin_ratio = float(metrics["skin_region"]["pixel_ratio"])
@@ -98,9 +99,9 @@ def analyze_image(arr: np.ndarray) -> ImageAnalysis:
     shadow_risk = max(_risk(shadow_clip_pct, 0.15, 4.0), _risk(0.035 - p05, 0.0, 0.035))
 
     region_metrics = summarize_regions(arr, masks)
-    skin_region = region_metrics["skin_region"]
-    sky_region = region_metrics["sky_region"]
-    vegetation_region = region_metrics["vegetation_region"]
+    skin_region: dict[str, Any] = region_metrics["skin_region"]
+    sky_region: dict[str, Any] = region_metrics["sky_region"]
+    vegetation_region: dict[str, Any] = region_metrics["vegetation_region"]
 
     skin_luma_range = _masked_luma_range(arr, masks.skin)
     sky_saturation_risk = 0.0
@@ -117,7 +118,7 @@ def analyze_image(arr: np.ndarray) -> ImageAnalysis:
             _risk(g_cast, 0.12, 0.32),
         )
 
-    metrics: dict[str, float | str | list[float] | dict[str, float]] = {
+    metrics: dict[str, Any] = {
         "exposure_luma_mean": float(lum.mean()),
         "exposure_luma_p01": p01,
         "exposure_luma_p05": p05,

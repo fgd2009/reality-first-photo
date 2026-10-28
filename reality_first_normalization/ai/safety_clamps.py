@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 CLAMPS: dict[str, tuple[float, float]] = {
     "exposure_correction_strength": (0.0, 1.0),
     "white_balance_correction_strength": (0.0, 1.0),

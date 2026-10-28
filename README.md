@@ -50,13 +50,13 @@ The quick-start commands reuse the demo's generated inputs and original warm LUT
 
 Each route starts independently from the same decoded input before PNG quantization; the reference PNG is not fed back into another route. The comparison does not select a best result. Use the image links to open/save individual exports and expand the details to inspect recipe strengths, actual normalization operations and ICC decisions. The default normalization strength is 0.6, LUT strength is 1 and preview long edge is 2048; adjust those with `--normalize-strength`, `--lut-strength` and `--max-long-edge`. Comparison output is always **8-bit PNG with the working sRGB ICC**.
 
-For your own images, replace `--input` and `--lut` with local paths, and choose a new output directory. `compare` requires a supported LUT. RAW and unknown or unsupported ICC inputs remain rejected; `--assume-srgb` is only a deliberate declaration for untagged pixels already known to be encoded sRGB.
+For your own images, replace `--input` and `--lut` with local paths, and choose a new output directory. `compare` requires a supported LUT. RAW and invalid or non-RGB ICC profiles remain rejected. Untagged JPEG, PNG and supported TIFF inputs are **assumed to be encoded sRGB** by default: the command prints a warning and records `default_assume_srgb_untagged_rgb8` or `default_assume_srgb_untagged_high_depth` plus `UntaggedAssumption: default` in the manifest and HTML report. `--assume-srgb` records the same pixels as an explicit declaration (`explicit_assume_srgb_…`). `--strict-color` restores rejection of untagged inputs. Neither flag can bypass an invalid embedded ICC. The Python `load_image` default stays strict unless the caller opts in.
 
 Input symlinks (including links inside an input folder), existing output paths and outputs inside the input tree are rejected. Supported input names/content and LUT bytes are checked between routes and before completion; a detected change leaves a failed report without a success page. This is change detection, not an immutable file snapshot.
 
 The local report consists of `index.html`, `compare.json` and the four image folders. It contains input filenames and hashes, LUT metadata and derived images; the tool does not upload it. Keep the folder together so its relative image links continue to work. The command does not launch a browser or start a server. Successful completion requires `compare.json` to say `complete`; a forced stop can leave an HTML file before that final checkpoint, so the page's existence alone is insufficient.
 
-Python callers can use `reality_first_normalization.compare.run_comparison(source, output, lut_path, ...)` with `Path` arguments. It returns 0 on success, 2 on a processing failure, or 130 on cancellation; invalid preflight options/paths raise `ValueError` or `OSError` before creating output.
+Python callers can use `reality_first_normalization.compare.run_comparison(source, output, lut_path, ...)` with `Path` arguments. It returns 0 when every input is compared, 2 when processing fails or any input is skipped, or 130 on cancellation. A partial comparison still writes `index.html` for the inputs that succeeded; `compare.json` status is `partial`, not `complete`. Invalid preflight options/paths raise `ValueError` or `OSError` before creating output. The Python API still rejects untagged inputs unless `assume_srgb=True` or `untagged_policy="default_assume"`.
 
 ### Export the route you choose
 
@@ -78,14 +78,14 @@ Use an appropriately licensed LUT authored for **encoded sRGB**. Normalization r
 
 The default preview long edge is 2048 pixels. Choose `--max-long-edge 0` explicitly for full size. Decoding happens before resizing; large-image memory use and performance have not been validated.
 
-Choose a **new output directory** for each run. Existing directories are rejected, and the output cannot be inside an input folder. Folder input searches recursively for JPEG, PNG and TIFF files. Known RAW extensions cause the whole run to fail before creating output; other extensions are ignored. Each processing run writes a `manifest.json` with its status, completed files, input hashes and color decisions. Each item also records `normalization.applied` and `normalization.operations`, including the actual `exposure_scale` and `white_balance_gains_rgb` when normalization runs. These are calculated processing parameters, not photo-quality scores. Failed or cancelled runs retain partial output and record the active/failed relative filename and processing stage; fix the cause and restart into another new directory. Abrupt termination can leave a `running` or missing final record, which must be treated as incomplete. Validation includes injected interruptions and real Linux SIGINT/SIGTERM signals at a controlled processing checkpoint; physical keyboard and GUI behavior remain unverified.
+Choose a **new output directory** for each run. Existing directories are rejected, and the output cannot be inside an input folder. Folder input searches recursively for JPEG, PNG and TIFF files. Known RAW extensions cause the whole run to fail before creating output; other extensions are ignored. Each processing run writes a `manifest.json` with its status, completed files, input hashes and color decisions. Each item also records `normalization.applied` and `normalization.operations`, including the actual `exposure_scale` and `white_balance_gains_rgb` when normalization runs. These are calculated processing parameters, not photo-quality scores. If one file fails, that file is skipped, later files still export, and the command exits 2. `failures` lists every skipped input; `failed_input` / `failed_stage` / `error` repeat the first one. `status` stays `failed` until every input succeeds. A comparison does the same: successful inputs are published with status `partial`, and the exit code is 2. Cancellation and a failed checkpoint still stop the run. Fix the cause and restart into another new directory. Abrupt termination can leave a `running` or missing final record, which must be treated as incomplete. Validation includes injected interruptions and real Linux SIGINT/SIGTERM signals at a controlled processing checkpoint; physical keyboard and GUI behavior remain unverified.
 
 ## If a command stops
 
 | Message or situation | Next step |
 | --- | --- |
 | Output directory already exists | Pick a new directory, for example `--output first-look-2`. Existing output is preserved. |
-| A new input has missing or invalid ICC | Re-export as tagged RGB sRGB in a trusted color-managed tool. Use `--assume-srgb` only for untagged pixels you know are already encoded sRGB; it cannot bypass an invalid ICC. |
+| A new input has no ICC profile | The CLI assumes encoded sRGB, prints a warning, and records that assumption. Re-export a tagged RGB sRGB file when the encoding is uncertain. `--assume-srgb` records an explicit declaration. `--strict-color` rejects the file instead. An invalid embedded ICC is always rejected. |
 | CUBE LUT not found | Correct the `--lut` path to your own supported CUBE file. For the standard image-processing command, omit `--lut` only if you want normalization alone; `compare` requires it. |
 
 Use the [troubleshooting guide](docs/TROUBLESHOOTING.md) for read-only checks, status interpretation and the pending synthetic HTML visual checklist. Actual browser appearance remains unverified in the managed development environment: local-file navigation was blocked with `ERR_BLOCKED_BY_ADMINISTRATOR`. Do not bypass that policy; structural HTML tests are not visual browser validation.
@@ -96,8 +96,8 @@ Use the [troubleshooting guide](docs/TROUBLESHOOTING.md) for read-only checks, s
 | --- | --- |
 | RGB8 JPEG and PNG | Valid RGB ICC profiles are converted to working sRGB through LittleCMS. Animated/multi-frame images, including APNG, are rejected. |
 | TIFF | Uncompressed, single-page, interleaved RGB only; 8/16-bit integer or bounded float32 samples. |
-| High-depth TIFF ICC | Requires the exact bundled working ICC, or an untagged image with an explicit sRGB assumption. Arbitrary high-depth ICC conversion is unavailable. |
-| Untagged input | Rejected unless `--assume-srgb` explicitly declares that its pixels are encoded sRGB. This option cannot bypass an invalid embedded ICC. |
+| High-depth TIFF ICC | Requires the exact bundled working ICC, or an untagged image accepted by the default sRGB assumption, `--assume-srgb`, or the library opt-in. Arbitrary high-depth ICC conversion is unavailable. |
+| Untagged input | CLI default: treat as encoded sRGB, warn, and record `UntaggedAssumption: default`. `--assume-srgb` records an explicit declaration. `--strict-color`, and `load_image` without an opt-in, reject it. No option bypasses an invalid embedded ICC. |
 | Resizing and output | Float32 channel resizing; 16-bit TIFF or 8-bit PNG/JPEG output, all with the working ICC. JPEG is lossy. |
 | LUT | Red-fastest 3D CUBE, trilinear interpolation, finite positive domain widths and output nodes in [0,1]. Default domain and `DOMAIN_MIN`/`DOMAIN_MAX` are supported. Unknown directives, 1D/combined tables and `LUT_3D_INPUT_RANGE` are rejected; no inferred log/HDR transforms. |
 
@@ -114,6 +114,21 @@ python -m pip install -e '.[test]' build
 python -m pytest -q tests
 python -m build
 ```
+
+### Installed-package acceptance
+
+[scripts/acceptance.py](scripts/acceptance.py) checks a wheel installed **outside** this checkout. Do not point it at an editable install (`python -m pip install -e`). That fails on purpose: the script imports the package with `python -I` and asserts the imported file is not inside the source tree.
+
+Build the wheel, install it into a second virtual environment, then pass that environment's interpreter:
+
+```sh
+python -m build
+python3 -m venv /tmp/reality-first-wheel-check
+/tmp/reality-first-wheel-check/bin/python -m pip install dist/*.whl
+python scripts/acceptance.py --python /tmp/reality-first-wheel-check/bin/python
+```
+
+Run the script itself with the checkout environment (the one that can import this repository's test tools). Pass only the wheel environment to `--python`. See [VALIDATION.md](VALIDATION.md#reproduce).
 
 The existing `--input` / `--output` command remains available for image processing. From a source checkout, `python -m examples.generate_demo demo-assets` still generates the original synthetic inputs and LUTs without processing them.
 

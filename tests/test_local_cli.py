@@ -3,12 +3,12 @@ import hashlib
 import json
 import runpy
 import sys
-from pathlib import Path
+
 import numpy as np
 import pytest
 from PIL import Image
-from reality_first_normalization import io
-from reality_first_normalization import local_cli
+
+from reality_first_normalization import io, local_cli
 
 
 def fixture(tmp_path):
@@ -71,20 +71,36 @@ def test_cli_custom_lut_strength_and_resize(tmp_path,monkeypatch):
     assert digest(source)==before
 
 
-def test_cli_missing_lut_no_output_and_untagged_rejected(tmp_path,monkeypatch):
-    source,cubes=fixture(tmp_path);out=tmp_path/'missing'
-    assert invoke(['--input',source,'--output',out,'--lut',tmp_path/'missing.cube'],monkeypatch)==2
+def test_cli_missing_lut_no_output_and_untagged_defaults_to_srgb(tmp_path, monkeypatch, capsys):
+    source, _cubes = fixture(tmp_path)
+    out = tmp_path / "missing"
+    assert invoke(["--input", source, "--output", out, "--lut", tmp_path / "missing.cube"], monkeypatch) == 2
     assert not out.exists()
-    untagged=tmp_path/'untagged.png';Image.new('RGB',(8,8),(50,100,150)).save(untagged)
-    rejected=tmp_path/'rejected'
-    assert invoke(['--input',untagged,'--output',rejected],monkeypatch)==2
-    assert json.loads((rejected/'manifest.json').read_text())['status']=='failed'
-    assert not list(rejected.glob('*.tif'))
-    assert invoke(['--input',untagged,'--output',tmp_path/'declared','--assume-srgb'],monkeypatch)==0
+    untagged = tmp_path / "untagged.png"
+    Image.new("RGB", (8, 8), (50, 100, 150)).save(untagged)
+    assumed = tmp_path / "assumed"
+    assert invoke(["--input", untagged, "--output", assumed, "--normalize-strength", "0"], monkeypatch) == 0
+    captured = capsys.readouterr()
+    assert "assuming encoded sRGB" in captured.err
+    assert "default_assume_srgb_untagged_rgb8" in captured.err
+    manifest = json.loads((assumed / "manifest.json").read_text())
+    assert manifest["status"] == "complete" and manifest["untagged_policy"] == "default_assume"
+    assert manifest["items"][0]["color"]["ColorConversion"] == "default_assume_srgb_untagged_rgb8"
+    assert manifest["items"][0]["color"]["UntaggedAssumption"] == "default"
+    strict = tmp_path / "strict"
+    assert invoke(["--input", untagged, "--output", strict, "--strict-color"], monkeypatch) == 2
+    assert json.loads((strict / "manifest.json").read_text())["status"] == "failed"
+    assert not list(strict.glob("*.tif"))
+    declared = tmp_path / "declared"
+    assert invoke(["--input", untagged, "--output", declared, "--assume-srgb", "--normalize-strength", "0"], monkeypatch) == 0
+    declared_manifest = json.loads((declared / "manifest.json").read_text())
+    assert declared_manifest["items"][0]["color"]["ColorConversion"] == "explicit_assume_srgb_untagged_rgb8"
+    assert invoke(["--input", untagged, "--output", tmp_path / "both", "--assume-srgb", "--strict-color"], monkeypatch) == 2
+    assert not (tmp_path / "both").exists()
 
 
 def test_cli_cancel_marks_partial_output(tmp_path,monkeypatch):
-    source,cubes=fixture(tmp_path);out=tmp_path/'cancelled'
+    source, _cubes = fixture(tmp_path); out = tmp_path / 'cancelled'
     def cancel(*args,**kwargs):raise KeyboardInterrupt()
     monkeypatch.setattr(local_cli,'load_image',cancel)
     assert local_cli.main(['--input',str(source),'--output',str(out)])==130
