@@ -9,7 +9,6 @@ from PIL import Image
 
 from reality_first_normalization import demo, io, local_cli
 
-
 NAMES = ("gradient", "chart", "geometry")
 
 

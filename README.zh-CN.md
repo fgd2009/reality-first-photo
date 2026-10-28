@@ -1,10 +1,21 @@
 # Reality First Photo
 
-**在本机离线比较**原图参考、自然归一化、自己的 LUT，以及归一化与 LUT 的组合，由你决定采用哪一路。源图保持不变；LUT 指纹、强度和色彩决策会被记录，便于按选定配方重复处理。
-
-当前 **0.1.0a4** 是 **Python 命令行预览版**，面向愿意使用终端、准备好受支持 RGB 图像和编码 sRGB 3D CUBE LUT 的用户。
+在你自己的电脑上，先做曝光和白平衡归一化，再叠上你的 sRGB CUBE LUT，并在本地对比几条处理路径。**0.1.0a4** 是 Python 命令行预览版，给会用终端、手头已有 JPEG、PNG 或 TIFF，以及编码 sRGB 三维 CUBE LUT 的人。
 
 [English](README.md) · [色彩契约](docs/COLOR_CONTRACT.md) · [验证记录](VALIDATION.md) · [MIT 许可](LICENSE)
+
+## 先跑一遍 demo
+
+需要 **Python 3.12 或更新版本**。在 POSIX shell 中：
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install https://github.com/fgd2009/reality-first-photo/archive/refs/heads/main.zip
+reality-first-photo demo --output first-look
+```
+
+打开 **`first-look/comparison.png`**。源图保持不变。安装会下载依赖。图像处理在本地完成，没有遥测、模型调用、账号登录或上传。CLI 不调用外部 EXIF 工具，也不读取个人偏好。
 
 ![三列静态合成演示：Input、Normalized、Normalized + warm LUT](docs/images/synthetic-comparison.png)
 
@@ -14,7 +25,7 @@
 
 ## 快速开始：先看到结果
 
-要求 **Python ≥3.12**。在 POSIX shell 中从 GitHub 安装，生成 demo、检查输入，再运行四路比较：
+下面整段可以单独复制，它就是完整的第一次运行：安装、demo、检查输入、四路比较。每次选择新的输出目录，已有输出不会被覆盖。无需 Git 仓库副本或测试工具，安装后可在源码目录外运行。
 
 ```sh
 python3 -m venv .venv
@@ -27,11 +38,7 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 打开 **`first-look/comparison.png`** 查看三列静态 demo；在允许本地文件访问的环境，打开 **`first-compare/index.html`** 查看四路报告和单张 PNG 链接。每次选择新的输出目录，已有输出不会被覆盖。无需 Git 仓库副本或测试工具，安装后可在源码目录外运行。
 
-可按[自愿试用引导](docs/TRYOUT.md#中文简要与反馈)检查结果：快速开始只运行一次，随后查看已经生成的文件。
-
-安装会下载依赖；图像处理在本地完成，没有遥测、模型调用、账号登录或上传。CLI 不调用外部 EXIF 工具，也不读取个人偏好。
-
-**预览边界：**由你选择偏好，程序不会给图像打分或自动选优。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。RAW、完整 GUI 和原生应用安装包不在当前范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。
+可按[自愿试用引导](docs/TRYOUT.md#中文简要与反馈)检查结果：快速开始只运行一次，随后查看已经生成的文件。LUT 指纹、强度和色彩决策会被记录，便于按选定配方重复处理。
 
 ## 比较四条处理路径
 
@@ -50,13 +57,13 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 报告不会默认选出最佳结果。可以通过图片旁的链接单独打开/保存导出图，并展开详情检查各路强度、实际归一化操作和 ICC 决策。默认归一化强度为 0.6、LUT 强度为 1、预览长边为 2048；可通过 `--normalize-strength`、`--lut-strength` 和 `--max-long-edge` 调整。比较结果固定导出为**附带工作 sRGB ICC 的 8 位 PNG**。
 
-处理自己的图片时，将 `--input`、`--lut` 换为本地路径，并选择新的输出目录。`compare` 必须指定受支持的 LUT。RAW、未知或不受支持的 ICC 输入仍会被拒绝；`--assume-srgb` 仅用于明确声明已确认是编码 sRGB 的无标签像素。
+处理自己的图片时，将 `--input`、`--lut` 换为本地路径，并选择新的输出目录。`compare` 必须指定受支持的 LUT。RAW，以及无效或非 RGB 的 ICC，仍会被拒绝。没有 ICC 的 JPEG、PNG 和支持的 TIFF **默认按编码 sRGB 处理**：命令会打印警告，并在 manifest 与 HTML 报告中记录 `default_assume_srgb_untagged_rgb8` 或 `default_assume_srgb_untagged_high_depth`，以及 `UntaggedAssumption: default`。`--assume-srgb` 记录同样的像素为显式声明（`explicit_assume_srgb_…`）。`--strict-color` 恢复为拒绝无 ICC 输入。这两个参数都不能绕过无效的内嵌 ICC。Python 的 `load_image` 默认仍然严格，除非调用方明确选择。
 
 本地报告由 `index.html`、`compare.json` 和四个图片文件夹组成，包含输入文件名及哈希、LUT 信息和派生图像；程序不会上传它们。移动报告时请保留整个文件夹，确保相对图片链接有效。命令不会自动启动浏览器或服务器。必须以 `compare.json` 的 `complete` 状态判断完成；强制终止可能在最终清单提交前留下 HTML，不能仅凭页面存在认定成功。
 
 每一路都从同一输入解码后的工作像素独立开始，再量化导出 PNG；不会把参考 PNG 再送入另一条处理路径。输入符号链接（包括文件夹内的链接）、已有输出路径和输入树内的输出都会被拒绝。程序在各路之间和完成前复核受支持输入的名称、内容及 LUT 字节；检测到变化则保留失败记录，不生成成功页面。这是变化检测，不是不可变文件快照。
 
-Python 调用可使用 `reality_first_normalization.compare.run_comparison(source, output, lut_path, ...)`，路径参数使用 `Path`。成功返回 0，处理失败返回 2，取消返回 130；前置参数或路径不合法时，会在创建输出前抛出 `ValueError` 或 `OSError`。
+Python 调用可使用 `reality_first_normalization.compare.run_comparison(source, output, lut_path, ...)`，路径参数使用 `Path`。每个输入都比较成功时返回 0；处理失败或有输入被跳过时返回 2；取消返回 130。部分比较仍会为成功的输入写出 `index.html`，但 `compare.json` 的状态是 `partial` 而不是 `complete`。前置参数或路径不合法时，会在创建输出前抛出 `ValueError` 或 `OSError`。Python API 默认仍拒绝无 ICC 输入，除非传入 `assume_srgb=True` 或 `untagged_policy="default_assume"`。
 
 ### 导出自己选中的路径
 
@@ -78,17 +85,21 @@ reality-first-photo --input /path/to/tagged-images --output /path/to/new-output 
 
 默认预览长边为 2048 像素。用 `--max-long-edge 0` 明确保留原尺寸；解码发生在缩放之前，大图内存占用和性能尚未验证。
 
-每次运行都需选择**新的输出目录**；已有目录会被拒绝，输出也不能位于输入文件夹内部。文件夹输入会递归查找 JPEG、PNG、TIFF；如发现已知 RAW 扩展名，整次运行会在创建输出前报错；其他扩展名会被忽略。`manifest.json` 记录运行状态、完成文件、输入哈希和色彩决策。每个文件还记录 `normalization.applied` 和 `normalization.operations`；执行归一化时，后者包含实际的 `exposure_scale` 与 `white_balance_gains_rgb`。这些是计算得到的处理参数，不是照片质量评分。失败或取消时保留部分输出，并记录当前/失败的相对文件名和处理阶段；修正原因后换新目录重试。强制终止可能留下 `running` 或没有最终记录，应视为未完成。验证包含注入中断，以及 Linux 上在受控处理检查点发送的真实 SIGINT/SIGTERM 信号；实体键盘和 GUI 行为仍未验证。
+每次运行都需选择**新的输出目录**；已有目录会被拒绝，输出也不能位于输入文件夹内部。文件夹输入会递归查找 JPEG、PNG、TIFF；如发现已知 RAW 扩展名，整次运行会在创建输出前报错；其他扩展名会被忽略。`manifest.json` 记录运行状态、完成文件、输入哈希和色彩决策。每个文件还记录 `normalization.applied` 和 `normalization.operations`；执行归一化时，后者包含实际的 `exposure_scale` 与 `white_balance_gains_rgb`。这些是计算得到的处理参数，不是照片质量评分。单个文件失败时会跳过该文件并继续处理其余文件，退出码为 2。`failures` 列出全部跳过的输入；`failed_input`、`failed_stage` 和 `error` 重复第一条。只要还有文件未成功，`status` 就保持 `failed`。比较命令同样跳过失败文件，为成功的输入写出报告，状态为 `partial`，退出码为 2。取消，或检查点无法写入，仍会停止整次运行。修正原因后换新目录重试。强制终止可能留下 `running` 或没有最终记录，应视为未完成。验证包含注入中断，以及 Linux 上在受控处理检查点发送的真实 SIGINT/SIGTERM 信号；实体键盘和 GUI 行为仍未验证。
 
 ## 遇到错误时
 
 | 提示或情况 | 下一步 |
 | --- | --- |
 | 输出目录已经存在 | 换用新目录，例如 `--output first-look-2`，已有输出会保留。 |
-| 新输入缺少 ICC，或 ICC 无效 | 在可信色彩管理工具中重新导出带标签的 RGB sRGB。仅当无标签像素已确认是编码 sRGB 时使用 `--assume-srgb`；它不能绕过损坏的 ICC。 |
+| 新输入没有 ICC | CLI 默认按编码 sRGB 处理，打印警告，并在报告中记录该假设。编码不确定时，请在可信色彩管理工具中重新导出带标签的 RGB sRGB。`--assume-srgb` 记录显式声明；`--strict-color` 改为拒绝该文件。无效的内嵌 ICC 始终被拒绝。 |
 | 找不到 CUBE LUT | 更正 `--lut` 路径，指向自己的受支持 CUBE 文件。普通图像处理命令可在仅需归一化时省略 `--lut`；`compare` 必须指定该参数。 |
 
 [故障恢复说明](docs/TROUBLESHOOTING.md)包含只读检查、状态解读和待执行的合成图 HTML 手动视觉检查。受管开发环境的真实浏览器效果仍未验证：本地文件导航返回 `ERR_BLOCKED_BY_ADMINISTRATOR`。不要绕过该策略；HTML 结构测试不等于浏览器视觉验收。
+
+## 预览边界
+
+由你选择偏好，程序不会给图像打分或自动选优。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。RAW、完整 GUI 和原生应用安装包不在当前范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。
 
 ## 支持范围与限制
 
@@ -96,8 +107,8 @@ reality-first-photo --input /path/to/tagged-images --output /path/to/new-output 
 | --- | --- |
 | RGB8 JPEG、PNG | 通过 LittleCMS 将有效 RGB ICC 转换至工作 sRGB；拒绝动画和多帧图像，包括 APNG。 |
 | TIFF | 仅无压缩、单页、逐像素 RGB；支持 8/16 位整数或范围受限的 float32。 |
-| 高位深 TIFF 的 ICC | 仅接受与内置工作 ICC 完全相同的配置，或无 ICC 且显式声明为 sRGB 的数据；不支持任意高位深 ICC 转换。 |
-| 无 ICC 输入 | 默认拒绝；只有确认像素已是编码 sRGB 时，才使用 `--assume-srgb`。该参数不能绕过损坏的内嵌 ICC。 |
+| 高位深 TIFF 的 ICC | 仅接受与内置工作 ICC 完全相同的配置，或无 ICC 且由默认 sRGB 假设、`--assume-srgb` 或库的显式选项接受的数据；不支持任意高位深 ICC 转换。 |
+| 无 ICC 输入 | CLI 默认按编码 sRGB 处理并警告，记录 `UntaggedAssumption: default`。`--assume-srgb` 记录显式声明。`--strict-color` 以及未选择该行为的 `load_image` 会拒绝。任何参数都不能绕过损坏的内嵌 ICC。 |
 | 缩放与导出 | float32 分通道缩放；导出 16 位 TIFF 或 8 位 PNG/JPEG，均附工作 ICC。JPEG 为有损格式。 |
 | LUT | 红轴最快的 3D CUBE，三线性插值、有限正域宽、输出节点位于 [0,1]；支持默认域和 `DOMAIN_MIN`/`DOMAIN_MAX`；拒绝未知指令、1D/组合表和 `LUT_3D_INPUT_RANGE`，不自动推断 log/HDR 转换。 |
 
@@ -110,14 +121,31 @@ git clone https://github.com/fgd2009/reality-first-photo.git
 cd reality-first-photo
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[test]' build
+python -m pip install -e '.[test,lint]' build
+python -m ruff check .
+python -m mypy reality_first_normalization
 python -m pytest -q tests
 python -m build
 ```
 
+### 已安装包验收
+
+[scripts/acceptance.py](scripts/acceptance.py) 检查的是安装在**源码目录之外**的 wheel。不要把可编辑安装（`python -m pip install -e`）的解释器传给它。脚本会故意失败：它用 `python -I` 导入包，并断言导入的文件不在本仓库目录内。
+
+先构建 wheel，安装到另一个虚拟环境，再把那个环境的解释器传给脚本：
+
+```sh
+python -m build
+python3 -m venv /tmp/reality-first-wheel-check
+/tmp/reality-first-wheel-check/bin/python -m pip install dist/*.whl
+python scripts/acceptance.py --python /tmp/reality-first-wheel-check/bin/python
+```
+
+脚本本身用检出目录的环境运行（需要能导入本仓库的测试工具）。`--python` 只填写 wheel 环境。步骤说明见 [VALIDATION.md](VALIDATION.md#reproduce)。
+
 原有 `--input` / `--output` 图像处理命令继续可用。在源码目录运行 `python -m examples.generate_demo demo-assets`，仍可只生成原始合成图和示例 LUT，不执行处理。
 
-[CI 工作流](.github/workflows/ci.yml) 使用 Ubuntu / Python 3.12 运行当前候选测试，构建软件包，在独立环境安装 wheel，并从源码目录之外运行完整演示和四路比较；不会自动发布到 PyPI。当前执行结果和未验证项见 [VALIDATION.md](VALIDATION.md)。历史大型恢复副本的测试数不计入此仓库覆盖数。
+[CI 工作流](.github/workflows/ci.yml) 有一个任务运行 ruff 和 mypy，另一个任务并行使用 Ubuntu / Python 3.12 运行当前候选测试，构建软件包，在独立环境安装 wheel，并从源码目录之外运行完整演示和四路比较；不会自动发布到 PyPI。当前执行结果和未验证项见 [VALIDATION.md](VALIDATION.md)。历史大型恢复副本的测试数不计入此仓库覆盖数。
 
 [路线图](ROADMAP.md)先保证可靠跑通全流程，再进入[自愿本地试用](docs/TRYOUT.md)。小组探索门槛是拟定标准，不是已收集到的用户结果；本工作不包含主动群发或自动选出最佳图像。
 

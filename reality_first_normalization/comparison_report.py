@@ -1,11 +1,10 @@
 """Render a completed four-way comparison as a self-contained local HTML page."""
 from __future__ import annotations
 
-from html import escape
 import json
+from html import escape
 from pathlib import PurePosixPath
 from urllib.parse import quote
-
 
 _RECIPE_IDS = ("original", "normalized", "lut_only", "normalized_lut")
 
@@ -40,10 +39,22 @@ def _image_url(output: object, recipe_id: str) -> str:
     return escape(quote(output, safe="/"), quote=True)
 
 
+def _assumption_note(color: object) -> str:
+    if not isinstance(color, dict):
+        return ""
+    assumption = color.get("UntaggedAssumption")
+    decision = color.get("ColorConversion", "")
+    if assumption == "default":
+        return f"Untagged input assumed encoded sRGB ({decision}). No embedded profile was converted."
+    if assumption == "explicit":
+        return f"Untagged input explicitly declared as encoded sRGB ({decision}). No embedded profile was converted."
+    return ""
+
+
 def render_comparison_html(report: dict) -> str:
-    """Render completed report data only; never read inputs or write output."""
-    if not isinstance(report, dict) or report.get("status") != "complete":
-        raise ValueError("Only a complete comparison report can be rendered")
+    """Render a finished report; never read inputs or write output."""
+    if not isinstance(report, dict) or report.get("status") not in {"complete", "partial"}:
+        raise ValueError("Only a complete or partial comparison report can be rendered")
     if report.get("kind") != "four_way_comparison" or report.get("format") != "png":
         raise ValueError("Expected a four_way_comparison report with PNG previews")
     recipes = report.get("recipes")
@@ -106,12 +117,31 @@ def render_comparison_html(report: dict) -> str:
                 "<details><summary>Recipe, normalization and ICC decisions</summary>"
                 f"<pre>{details}</pre></details></figure>"
             )
+        original = item["variants"].get("original", {})
+        note = _assumption_note(original.get("color") if isinstance(original, dict) else None)
+        assumption = f'<p class="assumption">{_text(note)}</p>' if note else ""
         rows.append(
             '<section class="input">'
             f"<h2>{_text(item.get('input_name', ''))}</h2>"
             f'<p class="dimensions">{_text(item.get("width"))} × '
             f'{_text(item.get("height"))} pixels per preview</p>'
+            f"{assumption}"
             '<div class="grid">' + "".join(cards) + "</div></section>"
+        )
+
+    skipped = report.get("failures") if report.get("status") == "partial" else []
+    if not isinstance(skipped, list):
+        raise ValueError("Partial comparison failures must be a list")
+    partial_note = ""
+    if report.get("status") == "partial":
+        listed = "".join(
+            f"<li>{_text(failure.get('input'))} ({_text(failure.get('stage'))}): {_text(failure.get('error'))}</li>"
+            for failure in skipped if isinstance(failure, dict)
+        )
+        partial_note = (
+            '<p class="note">This comparison is partial. Skipped inputs are listed below. '
+            "compare.json status is partial, not complete.</p>"
+            f"<ul>{listed}</ul>"
         )
 
     return (
@@ -145,6 +175,7 @@ def render_comparison_html(report: dict) -> str:
         f"<p>LUT: <strong>{_text(lut.get('name', ''))}</strong></p>"
         "<p>This private local report contains input filenames, hashes and derived images. "
         "The tool does not upload it. Keep the report folder together when moving it.</p>"
+        f"{partial_note}"
         "<details><summary>Report settings and LUT fingerprint</summary>"
         f"<pre>{metadata_json}</pre></details></header>"
         + "".join(rows)
