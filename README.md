@@ -1,10 +1,21 @@
 # Reality First Photo
 
-Compare an input reference, natural normalization, your own LUT and their combination **offline on your computer**. Source images stay unchanged; recorded LUT fingerprints, strengths and color decisions let you repeat the recipe you choose.
-
-Version **0.1.0a4** is a **Python command-line preview** for people comfortable with a terminal, supported RGB images and encoded-sRGB 3D CUBE LUTs.
+Normalize exposure and white balance on your own computer, then apply your sRGB CUBE LUT and compare the routes locally. Version **0.1.0a4** is a Python command-line preview for people who use a terminal and already have JPEG, PNG, or TIFF images plus an encoded-sRGB 3D CUBE LUT.
 
 [中文说明](README.zh-CN.md) · [Color contract](docs/COLOR_CONTRACT.md) · [Validation](VALIDATION.md) · [MIT license](LICENSE)
+
+## Run the demo
+
+Requires **Python 3.12 or newer**. In a POSIX shell:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install https://github.com/fgd2009/reality-first-photo/archive/refs/heads/main.zip
+reality-first-photo demo --output first-look
+```
+
+Open **`first-look/comparison.png`**. Source images stay unchanged. Installation downloads dependencies. Image processing stays local without telemetry, model calls, account login or uploads. The CLI does not invoke an external EXIF helper or read personal preference stores.
 
 ![Static three-column synthetic demo: Input, Normalized, and Normalized + warm LUT](docs/images/synthetic-comparison.png)
 
@@ -14,7 +25,7 @@ Version **0.1.0a4** is a **Python command-line preview** for people comfortable 
 
 ## Quick start: see the result
 
-Requires **Python 3.12 or newer**. In a POSIX shell, install from GitHub and generate the demo, check its inputs, then create a four-way comparison:
+The block below is the complete first run: install, demo, input check, and four-way comparison. It can be copied on its own. Choose fresh output directories; existing output is never overwritten. No Git checkout or test tools are needed, and the installed commands work outside a source checkout.
 
 ```sh
 python3 -m venv .venv
@@ -27,11 +38,7 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 Open **`first-look/comparison.png`** for the static three-column demo. Open **`first-compare/index.html`** where local-file browsing is permitted for the four-route report and individual PNG links. Choose fresh output directories; existing output is never overwritten. No Git checkout or test tools are needed, and the installed commands work outside a source checkout.
 
-For a [guided voluntary tryout](docs/TRYOUT.md#try-the-flow), run this quick start once, then inspect the results already created.
-
-Installation downloads dependencies. Image processing stays local without telemetry, model calls, account login or uploads. The CLI does not invoke an external EXIF helper or read personal preference stores.
-
-**Preview boundaries:** you choose a preferred result; the tool does not score images or select a winner. Evidence covers synthetic inputs and the checks in [VALIDATION.md](VALIDATION.md), not real-photo quality or physical film accuracy. Independent user trials have not been completed. RAW, a full GUI and native app installers are outside this preview; cross-platform behavior and actual browser appearance remain unverified. See the [support limits](#supported-inputs-and-limits) and [browser-check status](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check).
+For a [guided voluntary tryout](docs/TRYOUT.md#try-the-flow), run this quick start once, then inspect the results already created. Recorded LUT fingerprints, strengths and color decisions let you repeat the recipe you choose.
 
 ## Compare four processing routes
 
@@ -90,6 +97,10 @@ Choose a **new output directory** for each run. Existing directories are rejecte
 
 Use the [troubleshooting guide](docs/TROUBLESHOOTING.md) for read-only checks, status interpretation and the pending synthetic HTML visual checklist. Actual browser appearance remains unverified in the managed development environment: local-file navigation was blocked with `ERR_BLOCKED_BY_ADMINISTRATOR`. Do not bypass that policy; structural HTML tests are not visual browser validation.
 
+## Preview boundaries
+
+You choose a preferred result; the tool does not score images or select a winner. Evidence covers synthetic inputs and the checks in [VALIDATION.md](VALIDATION.md), not real-photo quality or physical film accuracy. Independent user trials have not been completed. RAW, a full GUI and native app installers are outside this preview; cross-platform behavior and actual browser appearance remain unverified. See the [support limits](#supported-inputs-and-limits) and [browser-check status](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check).
+
 ## Supported inputs and limits
 
 | Input or operation | Preview behavior |
@@ -110,7 +121,9 @@ git clone https://github.com/fgd2009/reality-first-photo.git
 cd reality-first-photo
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[test]' build
+python -m pip install -e '.[test,lint]' build
+python -m ruff check .
+python -m mypy reality_first_normalization
 python -m pytest -q tests
 python -m build
 ```
@@ -132,7 +145,7 @@ Run the script itself with the checkout environment (the one that can import thi
 
 The existing `--input` / `--output` command remains available for image processing. From a source checkout, `python -m examples.generate_demo demo-assets` still generates the original synthetic inputs and LUTs without processing them.
 
-The [CI workflow](.github/workflows/ci.yml) runs the candidate tests on Ubuntu with Python 3.12, builds the package, installs its wheel in a separate environment and runs the complete demo and four-way comparison outside the source checkout. It does not publish to PyPI. See [VALIDATION.md](VALIDATION.md) for the current executed checks and remaining limits; historical results from a larger recovery tree are not additional test coverage for this repository.
+The [CI workflow](.github/workflows/ci.yml) runs ruff and mypy in one job, and in parallel runs the candidate tests on Ubuntu with Python 3.12, builds the package, installs its wheel in a separate environment and runs the complete demo and four-way comparison outside the source checkout. It does not publish to PyPI. See [VALIDATION.md](VALIDATION.md) for the current executed checks and remaining limits; historical results from a larger recovery tree are not additional test coverage for this repository.
 
 The [roadmap](ROADMAP.md) starts with reliable end-to-end use, then a [voluntary local tryout](docs/TRYOUT.md). Its small-group learning gates are proposed criteria, not collected user results. No unsolicited outreach or automatic best-image choice is part of this work.
 

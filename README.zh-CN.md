@@ -1,10 +1,21 @@
 # Reality First Photo
 
-**在本机离线比较**原图参考、自然归一化、自己的 LUT，以及归一化与 LUT 的组合，由你决定采用哪一路。源图保持不变；LUT 指纹、强度和色彩决策会被记录，便于按选定配方重复处理。
-
-当前 **0.1.0a4** 是 **Python 命令行预览版**，面向愿意使用终端、准备好受支持 RGB 图像和编码 sRGB 3D CUBE LUT 的用户。
+在你自己的电脑上，先做曝光和白平衡归一化，再叠上你的 sRGB CUBE LUT，并在本地对比几条处理路径。**0.1.0a4** 是 Python 命令行预览版，给会用终端、手头已有 JPEG、PNG 或 TIFF，以及编码 sRGB 三维 CUBE LUT 的人。
 
 [English](README.md) · [色彩契约](docs/COLOR_CONTRACT.md) · [验证记录](VALIDATION.md) · [MIT 许可](LICENSE)
+
+## 先跑一遍 demo
+
+需要 **Python 3.12 或更新版本**。在 POSIX shell 中：
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install https://github.com/fgd2009/reality-first-photo/archive/refs/heads/main.zip
+reality-first-photo demo --output first-look
+```
+
+打开 **`first-look/comparison.png`**。源图保持不变。安装会下载依赖。图像处理在本地完成，没有遥测、模型调用、账号登录或上传。CLI 不调用外部 EXIF 工具，也不读取个人偏好。
 
 ![三列静态合成演示：Input、Normalized、Normalized + warm LUT](docs/images/synthetic-comparison.png)
 
@@ -14,7 +25,7 @@
 
 ## 快速开始：先看到结果
 
-要求 **Python ≥3.12**。在 POSIX shell 中从 GitHub 安装，生成 demo、检查输入，再运行四路比较：
+下面整段可以单独复制，它就是完整的第一次运行：安装、demo、检查输入、四路比较。每次选择新的输出目录，已有输出不会被覆盖。无需 Git 仓库副本或测试工具，安装后可在源码目录外运行。
 
 ```sh
 python3 -m venv .venv
@@ -27,11 +38,7 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 打开 **`first-look/comparison.png`** 查看三列静态 demo；在允许本地文件访问的环境，打开 **`first-compare/index.html`** 查看四路报告和单张 PNG 链接。每次选择新的输出目录，已有输出不会被覆盖。无需 Git 仓库副本或测试工具，安装后可在源码目录外运行。
 
-可按[自愿试用引导](docs/TRYOUT.md#中文简要与反馈)检查结果：快速开始只运行一次，随后查看已经生成的文件。
-
-安装会下载依赖；图像处理在本地完成，没有遥测、模型调用、账号登录或上传。CLI 不调用外部 EXIF 工具，也不读取个人偏好。
-
-**预览边界：**由你选择偏好，程序不会给图像打分或自动选优。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。RAW、完整 GUI 和原生应用安装包不在当前范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。
+可按[自愿试用引导](docs/TRYOUT.md#中文简要与反馈)检查结果：快速开始只运行一次，随后查看已经生成的文件。LUT 指纹、强度和色彩决策会被记录，便于按选定配方重复处理。
 
 ## 比较四条处理路径
 
@@ -90,6 +97,10 @@ reality-first-photo --input /path/to/tagged-images --output /path/to/new-output 
 
 [故障恢复说明](docs/TROUBLESHOOTING.md)包含只读检查、状态解读和待执行的合成图 HTML 手动视觉检查。受管开发环境的真实浏览器效果仍未验证：本地文件导航返回 `ERR_BLOCKED_BY_ADMINISTRATOR`。不要绕过该策略；HTML 结构测试不等于浏览器视觉验收。
 
+## 预览边界
+
+由你选择偏好，程序不会给图像打分或自动选优。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。RAW、完整 GUI 和原生应用安装包不在当前范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。
+
 ## 支持范围与限制
 
 | 输入或操作 | 当前预览行为 |
@@ -110,7 +121,9 @@ git clone https://github.com/fgd2009/reality-first-photo.git
 cd reality-first-photo
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[test]' build
+python -m pip install -e '.[test,lint]' build
+python -m ruff check .
+python -m mypy reality_first_normalization
 python -m pytest -q tests
 python -m build
 ```
@@ -132,7 +145,7 @@ python scripts/acceptance.py --python /tmp/reality-first-wheel-check/bin/python
 
 原有 `--input` / `--output` 图像处理命令继续可用。在源码目录运行 `python -m examples.generate_demo demo-assets`，仍可只生成原始合成图和示例 LUT，不执行处理。
 
-[CI 工作流](.github/workflows/ci.yml) 使用 Ubuntu / Python 3.12 运行当前候选测试，构建软件包，在独立环境安装 wheel，并从源码目录之外运行完整演示和四路比较；不会自动发布到 PyPI。当前执行结果和未验证项见 [VALIDATION.md](VALIDATION.md)。历史大型恢复副本的测试数不计入此仓库覆盖数。
+[CI 工作流](.github/workflows/ci.yml) 有一个任务运行 ruff 和 mypy，另一个任务并行使用 Ubuntu / Python 3.12 运行当前候选测试，构建软件包，在独立环境安装 wheel，并从源码目录之外运行完整演示和四路比较；不会自动发布到 PyPI。当前执行结果和未验证项见 [VALIDATION.md](VALIDATION.md)。历史大型恢复副本的测试数不计入此仓库覆盖数。
 
 [路线图](ROADMAP.md)先保证可靠跑通全流程，再进入[自愿本地试用](docs/TRYOUT.md)。小组探索门槛是拟定标准，不是已收集到的用户结果；本工作不包含主动群发或自动选出最佳图像。
 

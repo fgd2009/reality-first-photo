@@ -43,7 +43,9 @@ The installed-package signal harness pauses only a test wrapper at the second im
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install -e '.[test]' build
+python -m pip install -e '.[test,lint]' build
+python -m ruff check .
+python -m mypy reality_first_normalization
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q -p no:cacheprovider tests
 python -m build
 python3 -m venv /tmp/reality-first-wheel-check
@@ -54,7 +56,7 @@ python scripts/acceptance.py --python /tmp/reality-first-wheel-check/bin/python
 
 Use a fresh verification environment. [The acceptance script](scripts/acceptance.py) creates and removes only its disposable synthetic test tree; it invokes the installed package with isolated Python outside the checkout. Pass the wheel environment to `--python`. An editable install (`pip install -e`) fails this check on purpose, because the imported package then lives inside the source tree. The script verifies diagnosis, comparison, selected-route export, source/LUT hashes, partial failure, repeated-output refusal and a successful new-directory retry. On POSIX it also exercises SIGINT/SIGTERM; elsewhere those signal checks are explicitly not run.
 
-[CI](.github/workflows/ci.yml) runs the suite, builds the distribution, installs the wheel in a separate environment and runs both the acceptance script and decoded-image checks. [GitHub Actions](https://github.com/fgd2009/reality-first-photo/actions) records results for each exact commit. The final local suite disables automatic pytest plugins and bytecode writing; a Python audit hook rejects network/socket and child-process events, with no attempts observed. The separate acceptance harness intentionally launches local test processes. This audit is not a product OS sandbox; installation and package building can use the network.
+[CI](.github/workflows/ci.yml) runs ruff and mypy in a separate job, and runs the suite, builds the distribution, installs the wheel in a separate environment and runs both the acceptance script and decoded-image checks. The 2026-10-27 result table above records that date's suite. Ruff and mypy are later CI jobs. [GitHub Actions](https://github.com/fgd2009/reality-first-photo/actions) records results for each exact commit. The final local suite disables automatic pytest plugins and bytecode writing; a Python audit hook rejects network/socket and child-process events, with no attempts observed. The separate acceptance harness intentionally launches local test processes. This audit is not a product OS sandbox; installation and package building can use the network.
 
 ## Preserved evidence and outstanding acceptance
 
