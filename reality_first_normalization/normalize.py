@@ -1,13 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
-from .analysis import ImageAnalysis
 from .ai.safety_clamps import CLAMPS, local_fallback_advice
-from .color import EPSILON, adjust_saturation, apply_channel_gains, blend, clamp01, luminance
+from .analysis import ImageAnalysis
+from .color import (
+    EPSILON,
+    adjust_saturation,
+    apply_channel_gains,
+    blend,
+    clamp01,
+    luminance,
+)
 from .style_profiles import load_style_profile
 
 
@@ -294,7 +302,7 @@ def normalize_image(
     }.items():
         if np.any(mask):
             protected_regions.append(key)
-    operations: dict[str, float | list[float] | str] = {
+    operations: dict[str, Any] = {
         "engine": "Reality First Color Engine v1.0",
         "normalization_strategy_source": strategy_source,
         "normalization_strategy": strategy,

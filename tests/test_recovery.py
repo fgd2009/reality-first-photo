@@ -317,23 +317,27 @@ def test_demo_refuses_dangling_output_link_without_creating_its_target(tmp_path,
     assert "Demo complete." not in captured.out
 
 
-def test_comparison_propagates_actual_partial_decode_failure(recovery_inputs, tmp_path, capsys):
+def test_comparison_publishes_successful_inputs_when_one_decode_fails(recovery_inputs, tmp_path, capsys):
     source, lut = recovery_inputs
     make_image(source / "nested" / "b.png", valid_icc=False)
     before = tree_hashes(source)
     output = tmp_path / "mixed-invalid-comparison"
     assert compare.run_comparison(source, output, lut) == 2
     report = read_json(output / "compare.json")
-    assert report["status"] == "failed"
+    assert report["status"] == "partial"
+    assert [item["input_name"] for item in report["items"]] == ["a.png"]
+    assert any(failure["input"] == "nested/b.png" and failure["stage"] == "decode" for failure in report["failures"])
+    assert "nested/b.png" in report["error"] and "decode" in report["error"]
     stage = report["stages"]["original"]
     assert stage["status"] == "failed" and stage["exported"] == 1
-    assert stage["failed_input"] == "nested/b.png"
-    assert stage["failed_stage"] == "decode"
-    assert "nested/b.png" in report["error"] and "decode" in report["error"]
+    assert stage["failed_input"] == "nested/b.png" and stage["failed_stage"] == "decode"
     manifest = read_json(output / "original" / "manifest.json")
     assert [item["output"] for item in manifest["items"]] == ["a.png"]
-    assert not (output / "normalized").exists()
-    assert not (output / "index.html").exists()
+    page = (output / "index.html").read_text(encoding="utf-8")
+    assert "partial, not complete" in page and "nested/b.png" in page
+    for recipe in ("original", "normalized", "lut_only", "normalized_lut"):
+        assert (output / recipe / "a.png").is_file()
+        assert not (output / recipe / "nested" / "b.png").exists()
     assert tree_hashes(source) == before
     captured = capsys.readouterr()
     assert "Comparison complete" not in captured.out

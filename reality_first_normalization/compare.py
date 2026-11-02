@@ -7,10 +7,11 @@ import json
 import math
 import sys
 from pathlib import Path
+from typing import Any
 
-from . import local_cli
-from . import report_state
+from . import local_cli, report_state
 from .comparison_report import render_comparison_html
+from .io import resolve_untagged_policy
 from .lut import load_cube_lut
 
 
@@ -51,11 +52,15 @@ def _collect_items(names: list[Path], expected: dict[str, str],
     wanted = {name.as_posix() for name in names}
     stage_items = {}
     for recipe in recipes:
-        recipe_id = recipe["id"]
+        recipe_id = str(recipe["id"])
         manifest = manifests[recipe_id]
         entries = manifest.get("items", [])
         indexed = {entry.get("output"): entry for entry in entries}
-        if manifest.get("status") != "complete" or len(entries) != len(wanted) or set(indexed) != wanted:
+        if not manifest.get("batch_completed"):
+            raise ValueError(f"Incomplete or inconsistent {recipe_id} export manifest")
+        if manifest.get("status") == "complete" and (len(entries) != len(wanted) or set(indexed) != wanted):
+            raise ValueError(f"Incomplete or inconsistent {recipe_id} export manifest")
+        if manifest.get("status") not in {"complete", "failed"} or (manifest.get("status") == "failed" and not entries):
             raise ValueError(f"Incomplete or inconsistent {recipe_id} export manifest")
         expected_lut = lut_sha256 if recipe["lut_selected"] else None
         if (manifest.get("lut_sha256") != expected_lut
@@ -63,8 +68,12 @@ def _collect_items(names: list[Path], expected: dict[str, str],
                 or manifest.get("lut_strength") != recipe["lut_strength"]):
             raise ValueError(f"Recipe or LUT fingerprint mismatch in {recipe_id}")
         stage_items[recipe_id] = indexed
+    common = set.intersection(*(set(indexed) for indexed in stage_items.values())) if stage_items else set()
+    selected = [name for name in names if name.as_posix() in common]
+    if not selected:
+        raise ValueError("No input succeeded in every comparison recipe")
     items = []
-    for relative in names:
+    for relative in selected:
         key = relative.as_posix()
         input_name = output_to_input[key]
         reference = stage_items["original"][key]
@@ -87,18 +96,18 @@ def _collect_items(names: list[Path], expected: dict[str, str],
 
 def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_strength: float = .6,
                    lut_strength: float = 1.0, max_long_edge: int = 2048,
-                   assume_srgb: bool = False) -> int:
-    """Write a private local comparison. Return 0, 2 (failed) or 130 (cancelled).
+                   assume_srgb: bool = False, untagged_policy: str | None = None) -> int:
+    """Write a private local comparison. Return 0, 2 (failed or partial) or 130 (cancelled).
 
     Invalid options/paths raise ValueError or OSError before output is created.
     This checks hashes between recipes; it does not lock or snapshot source files.
+    A per-file failure is skipped. Successful inputs are still published with status partial.
     """
     normalize_strength = _strength(normalize_strength, "normalize_strength")
     lut_strength = _strength(lut_strength, "lut_strength")
     if isinstance(max_long_edge, bool) or not isinstance(max_long_edge, int) or max_long_edge < 0:
         raise ValueError("max_long_edge must be a nonnegative integer")
-    if not isinstance(assume_srgb, bool):
-        raise ValueError("assume_srgb must be a boolean")
+    policy = resolve_untagged_policy(assume_srgb, untagged_policy)
     source, output, files, names = local_cli.plan_inputs(Path(source), Path(output), max_long_edge)
     lut_path = Path(lut_path)
     if lut_path.is_symlink():
@@ -114,7 +123,7 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
         raise ValueError("Comparison filenames must be valid UTF-8") from exc
     if {p.relative_to(source).as_posix() if source.is_dir() else p.name for p in files} != set(expected):
         raise ValueError("Input set changed during comparison preparation")
-    recipes = []
+    recipes: list[dict[str, Any]] = []
     for recipe_id, label, normalization, selected in [
         ("original", "Input reference", 0.0, False),
         ("normalized", "Normalization only", normalize_strength, False),
@@ -124,9 +133,10 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
         recipes.append({"id": recipe_id, "label": label, "normalize_strength": normalization,
                         "lut_strength": lut_strength if selected else 0.0,
                         "lut_selected": selected, "lut_applied": selected and lut_strength > 0})
-    report = {
+    report: dict[str, Any] = {
         "kind": "four_way_comparison", "status": "running", "format": "png",
-        "working_space": "encoded sRGB", "max_long_edge": max_long_edge, "assume_srgb": assume_srgb,
+        "working_space": "encoded sRGB", "max_long_edge": max_long_edge,
+        "assume_srgb": policy == "explicit", "untagged_policy": policy, "failures": [],
         "reference_notice": "Decoded, ICC-converted/resized sRGB PNG reference, not a source-file copy.",
         "notice": "Four alternatives, no automatic ranking. Input and LUT hashes are checked between stages.",
         "lut": {"name": lut_path.name, "sha256": lut.source_sha256},
@@ -143,29 +153,55 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
             recipe_id = recipe["id"]
             report["active_recipe"] = recipe_id
             _write_report(output, report)
-            args = argparse.Namespace(input=source, output=output / recipe_id,
-                                      lut=lut_path if recipe["lut_selected"] else None,
-                                      normalize_strength=recipe["normalize_strength"], lut_strength=recipe["lut_strength"],
-                                      format="png", max_long_edge=max_long_edge, assume_srgb=assume_srgb)
+            args = argparse.Namespace(
+                input=source, output=output / recipe_id,
+                lut=lut_path if recipe["lut_selected"] else None,
+                normalize_strength=recipe["normalize_strength"], lut_strength=recipe["lut_strength"],
+                format="png", max_long_edge=max_long_edge,
+                assume_srgb=(policy == "explicit"), strict_color=(policy == "strict"),
+                untagged_policy=policy, announce_assumptions=(recipe_id == "original"),
+            )
             result = local_cli.run(args)
             manifest_path = output / recipe_id / "manifest.json"
             manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.is_file() else {}
-            report["stages"][recipe_id] = {"status": manifest.get("status", "incomplete"),
-                                           "manifest": f"{recipe_id}/manifest.json",
-                                           "exported": len(manifest.get("items", [])),
-                                           "failed_input": manifest.get("failed_input"),
-                                           "failed_stage": manifest.get("failed_stage")}
+            report["stages"][recipe_id] = {
+                "status": manifest.get("status", "incomplete"),
+                "manifest": f"{recipe_id}/manifest.json",
+                "exported": len(manifest.get("items", [])),
+                "failed_input": manifest.get("failed_input"),
+                "failed_stage": manifest.get("failed_stage"),
+                "failures": manifest.get("failures", []),
+                "batch_completed": manifest.get("batch_completed", False),
+            }
             _write_report(output, report)
             if result == 130:
                 raise KeyboardInterrupt
-            if result:
-                raise RuntimeError(f"{recipe_id} export failed at {json.dumps(manifest.get('failed_input'), ensure_ascii=True)} "
-                                   f"({manifest.get('failed_stage')}): {manifest.get('error', 'see partial stage output')}")
+            continuable = bool(manifest.get("batch_completed") and manifest.get("items"))
+            if result and not continuable:
+                raise RuntimeError(
+                    f"{recipe_id} export failed at {json.dumps(manifest.get('failed_input'), ensure_ascii=True)} "
+                    f"({manifest.get('failed_stage')}): {manifest.get('error', 'see partial stage output')}"
+                )
             manifests[recipe_id] = manifest
             _check_unchanged(source, expected, lut_path, lut.source_sha256)
         report["items"] = _collect_items(names, expected, recipes, manifests, lut.source_sha256)
+        skipped: list[dict[str, str]] = []
+        seen_inputs: set[str] = set()
+        for recipe in recipes:
+            for failure in manifests[str(recipe["id"])].get("failures", []):
+                if failure.get("input") in seen_inputs:
+                    continue
+                seen_inputs.add(str(failure.get("input")))
+                skipped.append(failure)
+        report["failures"] = skipped
         report["active_recipe"] = None
-        report["status"] = "complete"
+        if skipped:
+            first = skipped[0]
+            report["status"] = "partial"
+            report["error"] = f"Skipped {first['input']} ({first['stage']}): {first['error']}"
+            code = 2
+        else:
+            report["status"] = "complete"
         html = render_comparison_html(report)
         _check_unchanged(source, expected, lut_path, lut.source_sha256)
         temporary = output / ".index.html.tmp"
@@ -178,7 +214,7 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
     except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
         report.update(status="failed", error=str(exc))
         code = 2
-    if code:
+    if code and report.get("status") != "partial":
         (output / "index.html").unlink(missing_ok=True)
         (output / ".index.html.tmp").unlink(missing_ok=True)
         try:
@@ -187,6 +223,17 @@ def run_comparison(source: Path, output: Path, lut_path: Path, *, normalize_stre
             print(f"Cannot save final comparison status: {exc}. Treat all outputs as incomplete.", file=sys.stderr)
         print(f"Comparison {report['status']}: {report.get('error', report['notice'])}", file=sys.stderr)
         print(f"Partial outputs: {output}. Use a new --output directory to retry.", file=sys.stderr)
+    elif report.get("status") == "partial":
+        skipped = report.get("failures", [])
+        print(
+            f"Comparison partial: {len(report['items'])} inputs compared, {len(skipped)} skipped. "
+            "compare.json status is partial, not complete.",
+            flush=True,
+        )
+        print(f"Open locally: {output / 'index.html'}", flush=True)
+        for failure in skipped:
+            print(f"Skipped {failure['input']} ({failure['stage']}): {failure['error']}", file=sys.stderr)
+        print(f"Partial outputs: {output}. Use a new --output directory to retry failed inputs.", file=sys.stderr)
     else:
         print(f"Comparison complete: {len(report['items'])} inputs, four recipes each.", flush=True)
         print(f"Open locally: {output / 'index.html'}", flush=True)
@@ -200,18 +247,19 @@ def main(argv=None) -> int:
         description="Privately compare input reference, normalization only, LUT only, and normalization + LUT.",
         epilog="Open OUTPUT/index.html locally. Exports are 8-bit sRGB PNG previews; sources are not overwritten.",
     )
-    parser.add_argument("--input", type=Path, required=True, help="Tagged RGB file or folder; RAW and symlinks are unsupported.")
+    parser.add_argument("--input", type=Path, required=True, help="RGB file or folder. Untagged inputs are assumed to be encoded sRGB unless --strict-color is set. RAW and symlinks are unsupported.")
     parser.add_argument("--output", type=Path, required=True, help="New directory outside the input tree; no overwrite.")
     parser.add_argument("--lut", type=Path, required=True, help="Your local red-fastest encoded-sRGB 3D CUBE.")
     parser.add_argument("--normalize-strength", type=local_cli.unit_float, default=.6)
     parser.add_argument("--lut-strength", type=local_cli.unit_float, default=1.0)
     parser.add_argument("--max-long-edge", type=int, default=2048, help="Preview long edge; 0 keeps full dimensions (large-image performance unverified).")
-    parser.add_argument("--assume-srgb", action="store_true", help="Explicitly declare untagged sRGB pixels; never bypasses an invalid ICC.")
+    local_cli.add_color_policy_arguments(parser)
     args = parser.parse_args(argv)
     try:
+        policy = local_cli.untagged_policy_from_flags(assume_srgb=args.assume_srgb, strict_color=args.strict_color)
         return run_comparison(args.input, args.output, args.lut, normalize_strength=args.normalize_strength,
                               lut_strength=args.lut_strength, max_long_edge=args.max_long_edge,
-                              assume_srgb=args.assume_srgb)
+                              assume_srgb=args.assume_srgb, untagged_policy=policy)
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2

@@ -3,7 +3,6 @@ import hashlib
 import html
 import json
 from html.parser import HTMLParser
-from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 import numpy as np
@@ -11,7 +10,6 @@ import pytest
 from PIL import Image
 
 from reality_first_normalization import compare, io, local_cli
-
 
 RECIPES = ("original", "normalized", "lut_only", "normalized_lut")
 

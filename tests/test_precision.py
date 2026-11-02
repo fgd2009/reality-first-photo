@@ -1,5 +1,6 @@
 """Precision regressions using generated floating-point pixels only."""
 import numpy as np
+
 from reality_first_normalization import io
 
 

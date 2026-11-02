@@ -11,7 +11,6 @@ from PIL import Image, ImageDraw, ImageFont
 from . import report_state
 from .io import save_image, working_srgb_icc
 
-
 IMAGE_NAMES = ("gradient", "chart", "geometry")
 
 

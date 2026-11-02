@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 REQUIRED_PROFILE_FIELDS = {
     "display_name_zh",
     "philosophy_zh",

@@ -4,7 +4,6 @@ from pathlib import Path
 
 from reality_first_normalization.demo import generate
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("destination", type=Path)

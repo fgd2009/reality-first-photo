@@ -5,14 +5,22 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from . import local_cli
-from .io import RAW_EXTS, SUPPORTED_EXTS, load_image
+from .io import (
+    RAW_EXTS,
+    SUPPORTED_EXTS,
+    assumption_warning,
+    load_image,
+    resolve_untagged_policy,
+)
 from .lut import load_cube_lut
 
 
 def inspect_inputs(source: Path, *, lut_path: Path | None = None, format: str = "png",
-                   max_long_edge: int = 2048, assume_srgb: bool = False) -> dict:
+                   max_long_edge: int = 2048, assume_srgb: bool = False,
+                   untagged_policy: str | None = None) -> dict[str, Any]:
     """Decode each candidate without exporting or extracting external EXIF.
 
     A ready result describes this check only: it does not reserve output paths,
@@ -22,12 +30,14 @@ def inspect_inputs(source: Path, *, lut_path: Path | None = None, format: str = 
         raise ValueError("format must be png, jpeg or tiff")
     if isinstance(max_long_edge, bool) or not isinstance(max_long_edge, int) or max_long_edge < 0:
         raise ValueError("max_long_edge must be a nonnegative integer")
-    if not isinstance(assume_srgb, bool):
-        raise ValueError("assume_srgb must be a boolean")
-    report = {"kind": "input_check", "status": "checking", "format": format,
-              "max_long_edge": max_long_edge, "assume_srgb": assume_srgb,
-              "items": [], "issues": [], "lut": None,
-              "notice": "Read-only decode check, not a photo-quality assessment or a guarantee of export success."}
+    policy = resolve_untagged_policy(assume_srgb, untagged_policy)
+    report: dict[str, Any] = {
+        "kind": "input_check", "status": "checking", "format": format,
+        "max_long_edge": max_long_edge, "assume_srgb": policy == "explicit",
+        "untagged_policy": policy,
+        "items": [], "issues": [], "lut": None,
+        "notice": "Read-only decode check, not a photo-quality assessment or a guarantee of export success.",
+    }
     try:
         source = Path(source)
         # Check before resolve, so a root symlink cannot bypass enumeration.
@@ -51,7 +61,7 @@ def inspect_inputs(source: Path, *, lut_path: Path | None = None, format: str = 
                 report["issues"].append("Selected LUT could not be loaded. Correct its path or use a supported encoded-sRGB 3D CUBE.")
         for path in candidates:
             name = path.relative_to(source).as_posix() if source.is_dir() else path.name
-            entry = {"input_name": name, "status": "checking"}
+            entry: dict[str, Any] = {"input_name": name, "status": "checking"}
             report["items"].append(entry)
             extension = path.suffix.lower()
             if extension in RAW_EXTS:
@@ -62,9 +72,14 @@ def inspect_inputs(source: Path, *, lut_path: Path | None = None, format: str = 
                              error="Unsupported extension; folder exports ignore it, single-file exports reject it.")
             else:
                 try:
-                    pixels, color = load_image(path, max_long_edge=max_long_edge,
-                                               assume_srgb=assume_srgb, read_metadata=False)
+                    pixels, color = load_image(
+                        path, max_long_edge=max_long_edge, assume_srgb=(policy == "explicit"),
+                        untagged_policy=policy, read_metadata=False,
+                    )
                     entry.update(status="ready", width=int(pixels.shape[1]), height=int(pixels.shape[0]), color=color)
+                    warning = assumption_warning(name, color)
+                    if warning:
+                        entry["warning"] = warning
                     del pixels
                 except (OSError, ValueError, RuntimeError) as exc:
                     entry.update(status="blocked", error=str(exc), action=(
@@ -92,15 +107,20 @@ def main(argv=None) -> int:
     parser.add_argument("--lut", type=Path, help="Optional local encoded-sRGB 3D CUBE to validate.")
     parser.add_argument("--format", choices=["png", "jpeg", "tiff"], default="png", help="Planned export format for filename-collision checks (default: png).")
     parser.add_argument("--max-long-edge", type=int, default=2048)
-    parser.add_argument("--assume-srgb", action="store_true", help="Declare only known untagged sRGB; invalid ICC remains blocked.")
+    local_cli.add_color_policy_arguments(parser)
     parser.add_argument("--json", action="store_true", help="Print the diagnosis as JSON to stdout; no report file is created.")
     args = parser.parse_args(argv)
     try:
+        policy = local_cli.untagged_policy_from_flags(assume_srgb=args.assume_srgb, strict_color=args.strict_color)
         report = inspect_inputs(args.input, lut_path=args.lut, format=args.format,
-                                max_long_edge=args.max_long_edge, assume_srgb=args.assume_srgb)
+                                max_long_edge=args.max_long_edge, assume_srgb=args.assume_srgb,
+                                untagged_policy=policy)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
+    for item in report["items"]:
+        if item.get("warning"):
+            print("Warning: " + item["warning"], file=sys.stderr)
     if args.json:
         print(json.dumps(report, ensure_ascii=True, indent=2, allow_nan=False))
     else:

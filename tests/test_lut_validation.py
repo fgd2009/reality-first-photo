@@ -4,7 +4,6 @@ import pytest
 
 from reality_first_normalization.lut import apply_cube_lut, load_cube_lut
 
-
 IDENTITY_ROWS = "\n".join(
     f"{r} {g} {b}" for b in (0, 1) for g in (0, 1) for r in (0, 1)
 )

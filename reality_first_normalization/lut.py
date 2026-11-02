@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
-from pathlib import Path
 import shlex
+from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
