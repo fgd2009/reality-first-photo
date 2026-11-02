@@ -8,5 +8,6 @@ demo/
 first-look/
 out*/
 .DS_Store
+.realraw-cache/
 ._*
 __MACOSX/

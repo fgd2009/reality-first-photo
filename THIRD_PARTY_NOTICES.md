@@ -10,7 +10,15 @@ The project's [MIT license](LICENSE) covers its original source code, documentat
 
 SHA-256: `1e7c6b474ceb9dcf7796e85ccb898e5668d5c87d07b98d1ec702756e4e747706`.
 
-This notice applies to that generated profile only. No commercial photographic profile, LUT, XMP preset or real photograph is bundled.
+This notice applies to that generated profile only. No commercial photographic profile, LUT, XMP preset, film data sheet or real photograph is bundled.
+
+## Film recipes
+
+`reality_first_normalization/film/data/recipes/*.json` are original parameter files written for this project. They are not measurements copied from a manufacturer and not files imported from another film-simulation project. Their `sources` arrays cite textbooks and public standards for the model family. Those citations do not relicense the books or standards. See [docs/FILM_MODEL.md](docs/FILM_MODEL.md).
+
+## Optional RAW extra
+
+`reality-first-photo[raw]` installs `rawpy==0.26.1`, MIT, <https://github.com/letmaik/rawpy/blob/main/LICENSE>. rawpy loads LibRaw, which the rawpy project ships in its wheels and which is licensed LGPL-2.1 or CDDL: <https://github.com/letmaik/rawpy/blob/main/LICENSE.LibRaw>. This repository does not copy, modify, or redistribute LibRaw. GPL demosaic packs are not requested. Redistributing a rawpy wheel means complying with LibRaw's license for that wheel; this project's MIT text does not replace it.
 
 ## Dependencies
 
@@ -22,6 +30,7 @@ Dependencies are installed separately by the package installer; their source and
 | Pillow | RGB image I/O, float resizing and LittleCMS interface | [MIT-CMU](https://pillow.readthedocs.io/en/stable/about.html#license), with additional bundled-library notices in its distribution |
 | tifffile | TIFF input and 16-bit output | [BSD-3-Clause](https://github.com/cgohlke/tifffile/blob/master/LICENSE) |
 | pytest | Test runner only | [MIT](https://docs.pytest.org/en/stable/license.html) |
+| rawpy (optional extra and tests) | RAW decode via LibRaw | [MIT for rawpy](https://github.com/letmaik/rawpy/blob/main/LICENSE); [LGPL-2.1 or CDDL for LibRaw](https://github.com/letmaik/rawpy/blob/main/LICENSE.LibRaw) |
 | setuptools | Build backend | [MIT](https://github.com/pypa/setuptools/blob/main/LICENSE) |
 | build | Development/CI build frontend | [MIT](https://github.com/pypa/build/blob/main/LICENSE) |
 

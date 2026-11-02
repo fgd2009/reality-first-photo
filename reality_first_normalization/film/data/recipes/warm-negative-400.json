@@ -1,0 +1,186 @@
+{
+  "id": "warm-negative-400",
+  "display_name": "Warm negative 400",
+  "process": "negative-print",
+  "model_version": "parametric-hd-beer-lambert-v1",
+  "verification": "unverified",
+  "summary": "Faster colour-negative and print model with stronger grain, a warm print bias and mild highlight halation. The 400 in the name is a speed-class label, not a measured ISO speed.",
+  "constants_origin": "Camera characteristic-curve parameters were fit to this project's digitization of the cited Kodak Alaris chart. They are not a numeric table from the manufacturer. Print balance was then solved inside this model so a flat gray stays near neutral. Not fitted to a scan and not taken from another film-simulation project.",
+  "notes": "Illustrative parameters only. Physical resemblance to any real film is unverified. Camera-curve gamma, toe and layer spacing were fit to a digitization of E-4050 Status M curves. The fit is unverified against scans.",
+  "sources": [
+    {
+      "title": "Hurter and Driffield, Journal of the Society of Chemical Industry 9 (1890)",
+      "role": "Density versus log exposure, the H&D characteristic curve"
+    },
+    {
+      "title": "Mees and James (eds.), The Theory of the Photographic Process, 4th ed., Macmillan, 1977",
+      "role": "Sensitometry, granularity and halation as described in that textbook"
+    },
+    {
+      "title": "Hunt, The Reproduction of Colour, 6th ed., Wiley, 2004",
+      "role": "Integral versus analytical density, dye overlap, orange mask, negative-positive and reversal"
+    },
+    {
+      "title": "IUPAC Gold Book, Beer–Lambert law",
+      "role": "Transmittance as 10 to the power of minus optical density",
+      "url": "https://goldbook.iupac.org/terms/view/B00626"
+    },
+    {
+      "title": "ICC sRGB color space registry, IEC 61966-2-1 transfer and primaries",
+      "role": "Encoded sRGB input and output, not a camera spectral sensitivity",
+      "url": "https://registry.color.org/rgb-registry/srgb"
+    },
+    {
+      "title": "Kodak Alaris publication E-4050, January 2025, revised 1-25",
+      "role": "Status M characteristic-curve shape digitized by this project from the published chart; not a manufacturer numeric table and not a claim that the recipe matches the film",
+      "url": "https://www.kodakprofessional.com/sites/default/files/2025-07/e4050.pdf"
+    }
+  ],
+  "exposure": {
+    "scene_mid_gray": 0.18,
+    "exposure_ev": 0.0
+  },
+  "sensitivity": {
+    "layer_order": [
+      "cyan",
+      "magenta",
+      "yellow"
+    ],
+    "matrix_rgb_to_layers": [
+      [
+        0.9,
+        0.08,
+        0.02
+      ],
+      [
+        0.07,
+        0.88,
+        0.05
+      ],
+      [
+        0.03,
+        0.08,
+        0.89
+      ]
+    ],
+    "layer_log_h_offset": [
+      -0.857,
+      0.0,
+      0.686
+    ]
+  },
+  "curve": {
+    "d_min": 0.35,
+    "d_max": 2.8,
+    "log_h_mid": 0.4,
+    "gamma": 0.557,
+    "asymmetry": 0.0,
+    "skew_softness": 0.55
+  },
+  "dyes": {
+    "absorption_rgb_from_layers": [
+      [
+        0.9,
+        0.22,
+        0.04
+      ],
+      [
+        0.16,
+        0.84,
+        0.12
+      ],
+      [
+        0.05,
+        0.28,
+        0.92
+      ]
+    ],
+    "orange_mask_density_rgb": [
+      0.2,
+      0.1,
+      0.04
+    ]
+  },
+  "grain": {
+    "strength": 0.026,
+    "exponent": 0.5,
+    "midtone_emphasis": 0.35
+  },
+  "halation": {
+    "threshold": 2.2,
+    "gain_rgb": [
+      0.07,
+      0.022,
+      0.01
+    ],
+    "sigma_fraction": 0.012
+  },
+  "print": {
+    "exposure_ev": 0.039602,
+    "reference_transmittance": 0.04,
+    "balance_rgb": [
+      0.402943,
+      0.701666,
+      1.391643
+    ],
+    "sensitivity": {
+      "layer_order": [
+        "cyan",
+        "magenta",
+        "yellow"
+      ],
+      "matrix_rgb_to_layers": [
+        [
+          0.88,
+          0.09,
+          0.03
+        ],
+        [
+          0.08,
+          0.86,
+          0.06
+        ],
+        [
+          0.04,
+          0.1,
+          0.86
+        ]
+      ],
+      "layer_log_h_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "curve": {
+      "d_min": 0.06,
+      "d_max": 2.15,
+      "log_h_mid": 0.0,
+      "gamma": 1.55,
+      "asymmetry": 0.18,
+      "skew_softness": 0.45
+    },
+    "absorption_rgb_from_layers": [
+      [
+        0.9,
+        0.22,
+        0.04
+      ],
+      [
+        0.16,
+        0.84,
+        0.12
+      ],
+      [
+        0.05,
+        0.28,
+        0.92
+      ]
+    ],
+    "base_density_rgb": [
+      0.04,
+      0.04,
+      0.04
+    ]
+  }
+}

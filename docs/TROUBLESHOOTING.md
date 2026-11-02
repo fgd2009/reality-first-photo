@@ -16,10 +16,12 @@ A successful check describes the files read at that time. It does not export ima
 | Situation | What to do |
 | --- | --- |
 | Existing output file, folder or link | Choose a new output path. Do not delete previous output merely to retry; the CLI does not overwrite it. |
-| Missing LUT or unsupported CUBE | Correct the path or supply a supported, appropriately licensed encoded-sRGB 3D CUBE. `compare` requires a LUT; ordinary normalization-only export can omit it. |
+| Missing LUT or unsupported CUBE | Correct the path or supply a supported, appropriately licensed encoded-sRGB 3D CUBE. `compare` requires a LUT unless `--film` is set. Ordinary normalization-only export can omit both. |
+| Unknown film recipe | Use a bundled id such as `warm-negative-400`, or a UTF-8 JSON file that passes the loader. Bundled recipes are unverified against scans. `film-lut` omits grain and halation. |
 | Missing ICC | The CLI assumes encoded sRGB, warns, and records that assumption on the report. Re-export tagged RGB sRGB when the encoding is uncertain. `--assume-srgb` is the explicit record; `--strict-color` rejects the file. An invalid ICC is always rejected. |
 | Invalid or unsupported ICC | Re-export through a trusted color-managed tool using the [color contract](COLOR_CONTRACT.md). The assumption flag cannot override an invalid embedded profile. |
-| RAW, alpha, animation or another unsupported format | Convert to a supported tagged RGB input outside this tool. No RAW decoder or automatic format workaround is added by `check`. |
+| RAW file and the raw extra is not installed | Install `reality-first-photo[raw]`. Without it the run stops before creating output. The decode contract is [RAW_CONTRACT.md](RAW_CONTRACT.md). |
+| Alpha, animation, or another unsupported format | Convert to a supported tagged RGB input outside this tool. |
 | Input or LUT changes during processing | Keep the selected files unchanged for the run, then retry into a new directory. Existing partial results are not evidence of a consistent comparison. |
 | Local HTML viewing is blocked | Record the browser/environment limitation and stop that viewing check. Do not change policy, proxy/network settings or start a server to bypass it. Exported PNGs can be inspected normally where permitted; that does not count as HTML visual verification. |
 
@@ -71,7 +73,7 @@ The managed development browser previously rejected `file://` navigation with **
 
 先用只读 `check` 真实解码输入，查看 ready / blocked / ignored 和 ICC 决策；可加 `--json` 将机器可读结果打印到终端，不生成报告文件、不调用外部 EXIF 工具。检查只说明当时读到的文件，不锁定输入，也不保证之后不会变化。
 
-已有输出路径就换新名称；缺 LUT 修正路径，`compare` 必须有 LUT。无 ICC 时 CLI 默认按编码 sRGB 处理并警告，报告会记下该假设；编码不确定时仍应在可信工具重新导出带标签的 RGB sRGB。`--assume-srgb` 是显式记录，`--strict-color` 改为拒绝，二者都不能绕过无效 ICC。RAW 等不支持格式仍拒绝。单个文件失败会跳过并在末尾汇总，退出码为 2；比较里成功的输入状态是 `partial`。
+已有输出路径就换新名称；缺 LUT 修正路径，`compare` 必须有 LUT。无 ICC 时 CLI 默认按编码 sRGB 处理并警告，报告会记下该假设；编码不确定时仍应在可信工具重新导出带标签的 RGB sRGB。`--assume-srgb` 是显式记录，`--strict-color` 改为拒绝，二者都不能绕过无效 ICC。未安装 `raw` extra 时 RAW 仍会在创建输出前被拒绝。单个文件失败会跳过并在末尾汇总，退出码为 2；比较里成功的输入状态是 `partial`。
 
 失败或取消后，在本地记录中查看相对文件名、处理阶段和原因，再换新目录重试。强制终止后若仍是 `running` 或没有最终记录，应视为未完成；已有部分文件不代表成功。
 
