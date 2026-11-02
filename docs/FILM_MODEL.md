@@ -31,7 +31,7 @@ Relative exposure is `linear * 2^exposure_ev / scene_mid_gray`. Bundled recipes 
 
 ### 2. Characteristic curve
 
-Optical density follows a logistic of a warped log exposure. At the midpoint the slope is the recipe `gamma` (density per log10 exposure). `asymmetry > 0` lengthens the toe and shortens the shoulder; the warp derivative at the midpoint is 1, so gamma is unchanged. The warp is an original smooth skew, `u * exp(asymmetry * tanh(u / skew_softness))`. It is not a digitized manufacturer H&D plot.
+Optical density follows a logistic of a warped log exposure. At the midpoint the slope is the recipe `gamma` (density per log10 exposure). `asymmetry > 0` lengthens the toe and shortens the shoulder; the warp derivative at the midpoint is 1, so gamma is unchanged. The warp is an original smooth skew, `u * exp(asymmetry * tanh(u / skew_softness))`. For `warm-negative-400` and `neutral-negative-100`, gamma, toe and layer spacing are a least-squares fit of that logistic to this project's reading of the Status M curves in Kodak Alaris E-4050 and E-4046. The reading method, the missing parts of the charts, and the error estimate are in [data/curves/README.md](../data/curves/README.md). The fit is not a manufacturer numeric table and does not mean the rendered picture matches either film. The other recipes still use the original placeholder curves.
 
 Log exposure is floored at `1e-6` before `log10`. The reversal process stores the same increasing curve and uses the complement `d_min + d_max - D` as the dye that remains.
 
@@ -82,7 +82,7 @@ These sources justify the shape of the model. They are not a license to copy tab
 - CIE 142-2001 and ISO/CIE 11664-6. CIEDE2000. Implementation corners follow Sharma, G., Wu, W. and Dalal, E. N. (2005). The CIEDE2000 color-difference formula: implementation notes, supplementary test data, and mathematical observations. *Color Research & Application*, 30(1), 21–30. <https://doi.org/10.1002/col.20070>. Pairs: <https://hajim.rochester.edu/ece/sites/gsharma/ciede2000/>. Their MATLAB and spreadsheet were not copied; only the published numeric pairs are used as a test oracle.
 - Dainty, J. C. and Shaw, R. (1974). *Image Science*. Academic Press. Spread functions and granularity as linear imaging ideas. The Gaussian here is not their measured data.
 
-Manufacturer data sheets were not digitized. Using one later would require reading that sheet's license first and recording the URL and the license in the recipe.
+Two Kodak Alaris datasheets, E-4050 and E-4046 (January 2025), were rendered and read by `scripts/digitize_kodak_curves.py`. The PDFs are not in this repository. Spectral-sensitivity curves on those pages were not digitized, because the automatic trace did not stay on the ink. See [CALIBRATION_SOURCES.md](CALIBRATION_SOURCES.md).
 
 ## What was not taken from other film tools
 
@@ -90,7 +90,7 @@ SpektraFilm is GPL-3.0, its film configuration data is CC BY-SA 4.0, and its LUT
 
 ## RAW
 
-RAW is optional. Install `reality-first-photo[raw]` (`rawpy==0.26.1`). The decode contract, versions, EXIF allowlist, and the fact that this repository does not vendor LibRaw are in [RAW_CONTRACT.md](RAW_CONTRACT.md). Tests use a synthetic DNG generated in-repo, not a camera file. Real-camera RAW is still unverified.
+RAW is optional. Install `reality-first-photo[raw]` (`rawpy==0.26.1`). The decode contract, versions, EXIF allowlist, and the fact that this repository does not vendor LibRaw are in [RAW_CONTRACT.md](RAW_CONTRACT.md). Tests use a synthetic DNG generated in-repo. Four CC0 camera files can be downloaded by `pytest -m realraw`; see [RAW_TEST_SAMPLES.md](RAW_TEST_SAMPLES.md). That checks the decoder, not a camera JPEG.
 
 ## Author choices still open
 

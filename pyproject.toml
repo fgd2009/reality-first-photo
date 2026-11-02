@@ -32,6 +32,9 @@ reality_first_normalization = ["data/*.icc", "data/style_profiles/*.json", "film
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "realraw: download CC0 camera RAW from raw.pixls.us; excluded from the default CI job",
+]
 
 [tool.ruff]
 target-version = "py312"

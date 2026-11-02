@@ -40,6 +40,8 @@ Technical TIFF/DNG tags are copied when the container can be read: Make, Model, 
 
 GPS and MakerNote are not read and not written. `ExifOmitted` is `GPS,MakerNote`. An external `exiftool` is not called.
 
+Real-camera files used only as decode tests are listed in [RAW_TEST_SAMPLES.md](RAW_TEST_SAMPLES.md). They are CC0 samples from raw.pixls.us and are not stored in git.
+
 ## Not claimed
 
 A successful RAW decode is not evidence of color accuracy, film similarity, or agreement with a camera manufacturer's JPEG.

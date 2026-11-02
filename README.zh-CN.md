@@ -99,7 +99,7 @@ reality-first-photo --input /path/to/tagged-images --output /path/to/new-output 
 
 ## 参数化胶片模型（未验证）
 
-`--film` 放在归一化之后、用户 LUT 之前。它是一个简化的摄影模型：sRGB 解码、Hurter–Driffield 式特性曲线、3×3 分层感光与染料吸收矩阵（Beer–Lambert）、随密度变化的颗粒，以及高光 halation。内置五套配方使用通用名称，例如 `warm-negative-400`。名称里的数字只是速度档标签，不是测得的 ISO 感光度。参数是本项目自选、并在本模型内部做了灰平衡，不是商业胶片的测量值，也不是从其他胶片模拟项目取来的。
+`--film` 放在归一化之后、用户 LUT 之前。它是一个简化的摄影模型：sRGB 解码、Hurter–Driffield 式特性曲线、3×3 分层感光与染料吸收矩阵（Beer–Lambert）、随密度变化的颗粒，以及高光 halation。内置五套配方使用通用名称，例如 `warm-negative-400`。名称里的数字只是速度档标签，不是测得的 ISO 感光度。`warm-negative-400` 和 `neutral-negative-100` 的曲线参数来自本项目对柯达 E-4050、E-4046 特性曲线的读数拟合。那是数字化近似，不是厂商给出的数值表，也不表示画面与这两款胶片一致。其余配方仍是占位参数。灰平衡是在本模型内部解的。没有从其他胶片模拟项目取值。
 
 没有任何内置配方与真实胶片扫描对比过。请把它当成未经验证的参数化预览。
 

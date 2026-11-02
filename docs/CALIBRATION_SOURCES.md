@@ -32,6 +32,17 @@
 
 NIST 的光谱反射服务是校准业务，不是可下载的 CC0 数据集：<https://www.nist.gov/programs-projects/spectral-reflectance-and-transmittance>。
 
+## 本项目已自行数字化的两份手册
+
+2026-11-02 下载了下面两份 PDF，只在内存和临时目录里渲染第 4 页，没有把 PDF 或曲线图放进仓库。读取脚本是 `scripts/digitize_kodak_curves.py`。采样点在 `data/curves/`。
+
+| 手册 | 链接 | 版本 | 本项目做了什么 |
+| --- | --- | --- | --- |
+| Portra 400，E-4050 | <https://www.kodakprofessional.com/sites/default/files/2025-07/e4050.pdf> | January 2025，revised 1-25。PDF sha256 `70b15171673c5d01505f58ace448995ad72acbe5e401d1966563a61ac0712838`。© 2025 Kodak Alaris Inc. | 读了 Status M 特性曲线和染料密度曲线的一部分。光谱敏感度曲线交叉、带网格和文字，自动跟踪没有留在墨线上，所以没有写那张图的数字。 |
+| Ektar 100，E-4046 | <https://www.kodakprofessional.com/sites/default/files/2025-07/e4046.pdf> | January 2025，revised 1/25。PDF sha256 `38a41d47ad006cd563793033f83c8f9ef6cdd3c8300695c31facfc71d368f8db`。© 2025 Kodak Alaris Inc. | 同上。用户给的 imaging.kodakalaris.com 链接会跳到另一份文件；这里用的是 kodakprofessional.com 上的 2025 年版。 |
+
+这些 CSV 是本项目从印刷曲线上读的坐标，不是厂商发布的数值表，也不表示渲染结果与该胶片一致。估计误差大约 2 个像素，见每个 CSV 的头部。`warm-negative-400` 用了 E-4050 的特性曲线拟合，`neutral-negative-100` 用了 E-4046。染料密度曲线在两线相遇之后没有读全，所以没有拿它改染料矩阵。
+
 ## 现在就能用的参考
 
 在厂商许可弄清之前，参考数据应来自你自己拍的色卡。步骤见 [CALIBRATION_CAPTURE.md](CALIBRATION_CAPTURE.md)，目录格式见 [REFERENCE_SET.md](REFERENCE_SET.md)。

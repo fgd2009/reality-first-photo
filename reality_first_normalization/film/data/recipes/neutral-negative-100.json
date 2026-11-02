@@ -5,8 +5,8 @@
   "model_version": "parametric-hd-beer-lambert-v1",
   "verification": "unverified",
   "summary": "Slow colour-negative and print model with fine grain, mild halation and a near-neutral print balance. The 100 in the name is a speed-class label, not a measured ISO speed.",
-  "constants_origin": "Round illustrative parameters chosen for this project, then gray-balanced inside this same model. Not fitted to a scan, not copied from a manufacturer table, and not taken from another film-simulation project.",
-  "notes": "Illustrative parameters only. Physical resemblance to any real film is unverified.",
+  "constants_origin": "Camera characteristic-curve parameters were fit to this project's digitization of the cited Kodak Alaris chart. They are not a numeric table from the manufacturer. Print balance was then solved inside this model so a flat gray stays near neutral. Not fitted to a scan and not taken from another film-simulation project.",
+  "notes": "Illustrative parameters only. Physical resemblance to any real film is unverified. Camera-curve gamma, toe and layer spacing were fit to a digitization of E-4046 Status M curves. The fit is unverified against scans.",
   "sources": [
     {
       "title": "Hurter and Driffield, Journal of the Society of Chemical Industry 9 (1890)",
@@ -29,6 +29,11 @@
       "title": "ICC sRGB color space registry, IEC 61966-2-1 transfer and primaries",
       "role": "Encoded sRGB input and output, not a camera spectral sensitivity",
       "url": "https://registry.color.org/rgb-registry/srgb"
+    },
+    {
+      "title": "Kodak Alaris publication E-4046, January 2025, revised 1/25",
+      "role": "Status M characteristic-curve shape digitized by this project from the published chart; not a manufacturer numeric table and not a claim that the recipe matches the film",
+      "url": "https://www.kodakprofessional.com/sites/default/files/2025-07/e4046.pdf"
     }
   ],
   "exposure": {
@@ -59,17 +64,17 @@
       ]
     ],
     "layer_log_h_offset": [
+      -0.778,
       0.0,
-      0.0,
-      0.0
+      0.659
     ]
   },
   "curve": {
-    "d_min": 0.2,
-    "d_max": 2.45,
-    "log_h_mid": 0.0,
-    "gamma": 0.64,
-    "asymmetry": 0.05,
+    "d_min": 0.4,
+    "d_max": 2.8,
+    "log_h_mid": 0.4,
+    "gamma": 0.587,
+    "asymmetry": -0.1,
     "skew_softness": 0.55
   },
   "dyes": {
@@ -111,12 +116,12 @@
     "sigma_fraction": 0.012
   },
   "print": {
-    "exposure_ev": -0.050041,
+    "exposure_ev": 0.054555,
     "reference_transmittance": 0.04,
     "balance_rgb": [
-      0.840433,
-      0.754494,
-      0.758668
+      0.364368,
+      0.719876,
+      1.653957
     ],
     "sensitivity": {
       "layer_order": [

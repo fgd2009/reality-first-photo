@@ -99,7 +99,7 @@ Use the [troubleshooting guide](docs/TROUBLESHOOTING.md) for read-only checks, s
 
 ## Parametric film model (unverified)
 
-`--film` runs after normalization and before a user LUT. It is a simplified photographic model: an sRGB decode, a Hurter–Driffield-style characteristic curve, a 3×3 layer sensitivity and dye-absorption matrix (Beer–Lambert), density-dependent grain, and highlight halation. Five bundled recipes use generic names such as `warm-negative-400`. The number is a speed-class label, not a measured ISO speed. The parameters were chosen for this project and gray-balanced inside the model. They are not measurements of commercial stocks, and they were not taken from another film-simulation project.
+`--film` runs after normalization and before a user LUT. It is a simplified photographic model: an sRGB decode, a Hurter–Driffield-style characteristic curve, a 3×3 layer sensitivity and dye-absorption matrix (Beer–Lambert), density-dependent grain, and highlight halation. Five bundled recipes use generic names such as `warm-negative-400`. The number is a speed-class label, not a measured ISO speed. `warm-negative-400` and `neutral-negative-100` use a fit to this project's reading of Kodak Alaris E-4050 and E-4046 Status M charts. That reading is not a manufacturer numeric table and does not mean the picture matches either film. The other recipes remain placeholders. Print balance was solved inside this model. Nothing was taken from another film-simulation project.
 
 No bundled recipe has been compared with a real film scan. Treat the pictures as an unverified parametric preview.
 
