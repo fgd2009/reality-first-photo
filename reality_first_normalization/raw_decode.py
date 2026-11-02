@@ -64,7 +64,7 @@ def decode_raw(
         raise ColorManagementError("RAW white balance must be camera, daylight, or custom")
     if not isinstance(half_size, bool):
         raise ColorManagementError("RAW half_size must be a bool")
-    import rawpy  # type: ignore[import-untyped]
+    import rawpy  # type: ignore[import-not-found, import-untyped]
 
     user_wb: list[float] | None = None
     use_camera_wb = white_balance == "camera"
