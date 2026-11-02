@@ -163,7 +163,8 @@ def test_png16_rejected_before_pillow_can_reduce_precision(tmp_path):
 def test_raw_explicitly_unavailable_without_invoking_decoder(tmp_path,monkeypatch):
     def forbidden(*args,**kwargs):raise AssertionError('must not decode or read EXIF')
     monkeypatch.setattr(io,'read_exif',forbidden)
-    with pytest.raises(io.ColorManagementError,match='RAW is unsupported'):io.load_image(tmp_path/'generated.dng')
+    with pytest.raises(io.ColorManagementError, match='RAW'):
+        io.load_image(tmp_path / 'generated.dng')
 
 
 @pytest.mark.parametrize('mode,extra',[('RGBA',{}),('RGB',{'transparency':(0,0,0)})])

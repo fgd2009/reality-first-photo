@@ -37,16 +37,16 @@ Only uncompressed, single-page interleaved RGB TIFF is accepted; compressed TIFF
 | RGB16/float32 TIFF | Native precision; fixed work ICC or explicit untagged sRGB assumption | Synthetic TIFF16 roundtrip/guards |
 | JPEG/PNG output | 8-bit work sRGB with ICC | Synthetic checks |
 | TIFF output | 16-bit work sRGB with ICC; requires existing tifffile | Synthetic roundtrip |
-| RAW/DNG | Explicitly unavailable in this recovery preview | Rejection tested; no decoder invoked |
+| RAW/DNG | Optional `rawpy` extra. Without it, the run stops before creating output. With it, decode follows [RAW_CONTRACT.md](RAW_CONTRACT.md). | Synthetic DNG only; real-camera RAW unverified |
 | Native GUI / Windows / macOS application packaging | Outside this CLI preview | Not validated |
 | Python wheel / source distribution | Built and installed on Linux with Python 3.12 | See current validation record |
 | Commercial LUTs/XMP | Not copied or evaluated; missing assets fail closed | Synthetic missing-asset guards |
 
-RAW is unavailable because output primaries alone do not establish a transfer curve. A future RAW path needs an explicit decode/encoding contract plus real RAW validation. Nothing here claims physical film reproduction or Adobe rendering equivalence.
+Without the raw extra, RAW still stops the run before output is created. With the extra, pixels are linear sRGB from LibRaw (`gamma=(1, 1)`, clip highlights, no auto-bright) encoded with IEC 61966-2-1. That contract is [RAW_CONTRACT.md](RAW_CONTRACT.md). It is not a claim of physical film reproduction or of a camera JPEG match. Real-camera RAW remains unverified.
 
 ### Optional parametric film model
 
-`--film` is an additional mapping on the same encoded-sRGB working pixels. It does not change the ICC policy, the LUT interpolation or the normalization math. Its output is encoded sRGB in [0, 1]. Grain and halation are spatial; `film-lut` bakes only the pointwise color mapping. The model, its literature and the reason RAW decoding was not added are in [FILM_MODEL.md](FILM_MODEL.md). No bundled recipe has been checked against a film scan.
+`--film` is an additional mapping on the same encoded-sRGB working pixels. It does not change the ICC policy, the LUT interpolation or the normalization math. Its output is encoded sRGB in [0, 1]. Grain and halation are spatial; `film-lut` bakes only the pointwise color mapping. The model and its literature are in [FILM_MODEL.md](FILM_MODEL.md). No bundled recipe has been checked against a film scan.
 
 The local CLI defaults to a 2048-pixel preview long edge. Full resolution requires `--max-long-edge 0`; large-image memory/performance is unverified. Input decoding precedes resizing, so this is not a total memory bound.
 

@@ -20,9 +20,17 @@ from .film.simulate import (
     inactive_film_item,
     inactive_film_manifest,
 )
-from .io import RAW_EXTS, SUPPORTED_EXTS, assumption_warning, load_image, save_image
+from .io import (
+    RAW_EXTS,
+    SUPPORTED_EXTS,
+    assumption_warning,
+    load_image,
+    preserved_exif_from_color,
+    save_image,
+)
 from .lut import apply_cube_lut, load_cube_lut
 from .normalize import normalize_image
+from .raw_decode import raw_decoder_available
 
 _SKIP = object()
 
@@ -32,6 +40,19 @@ def unit_float(value: str) -> float:
     if not np.isfinite(number) or not 0 <= number <= 1:
         raise argparse.ArgumentTypeError("strength must be finite and between 0 and 1")
     return number
+
+
+def _raw_wb_gains(value: str) -> tuple[float, float, float]:
+    parts = value.split(",")
+    if len(parts) != 3:
+        raise argparse.ArgumentTypeError("raw wb gains must be R,G,B")
+    try:
+        red, green, blue = (float(part) for part in parts)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("raw wb gains must be numbers") from exc
+    if any(not np.isfinite(gain) or gain <= 0.0 for gain in (red, green, blue)):
+        raise argparse.ArgumentTypeError("raw wb gains must be finite and positive")
+    return (red, green, blue)
 
 
 def film_seed(value: str) -> int:
@@ -75,7 +96,11 @@ def build_parser() -> argparse.ArgumentParser:
                "Check inputs without exports: reality-first-photo check --help. "
                "Compare your own input in four ways: reality-first-photo compare --help.",
     )
-    p.add_argument("--input", type=Path, required=True, help="RGB file or folder. Untagged inputs are assumed to be encoded sRGB unless --strict-color is set. RAW is unsupported.")
+    p.add_argument("--input", type=Path, required=True, help="RGB file or folder. Untagged inputs are assumed to be encoded sRGB unless --strict-color is set. RAW needs the optional raw extra.")
+    p.add_argument("--raw-white-balance", choices=["camera", "daylight", "custom"], default="camera", help="RAW only. camera = as-shot, daylight = LibRaw daylight, custom = --raw-wb-gains.")
+    p.add_argument("--raw-wb-gains", type=_raw_wb_gains, help="RAW custom white balance as R,G,B positive multipliers.")
+    p.add_argument("--raw-demosaic", choices=["ahd", "linear", "vng", "ppg"], default="ahd", help="RAW demosaic. GPL demosaic packs are not used.")
+    p.add_argument("--raw-half-size", action="store_true", help="RAW only: one output pixel per 2x2 Bayer block, no interpolation.")
     p.add_argument("--output", type=Path, required=True, help="New output directory; existing directories are never overwritten.")
     p.add_argument("--lut", type=Path, help="Your own red-fastest SDR 3D CUBE, authored for encoded sRGB; omit for normalization only.")
     p.add_argument("--normalize-strength", type=unit_float, default=1.0, help="Normalization before the LUT: 0 skips it, 1 is full strength (default: 1).")
@@ -107,15 +132,21 @@ def inventory_inputs(source: Path) -> list[Path]:
 def discover_inputs(source: Path) -> list[Path]:
     """Read-only enumeration shared by normal export and comparison workflows."""
     candidates = inventory_inputs(source)
+    raw_files = [p for p in candidates if p.suffix.lower() in RAW_EXTS]
+    if raw_files and not raw_decoder_available():
+        sample = raw_files[0].relative_to(source) if source.is_dir() else raw_files[0].name
+        raise ValueError(
+            "RAW/DNG needs the optional raw extra (pip install 'reality-first-photo[raw]'). "
+            "This project does not bundle or modify LibRaw. "
+            f"Input contains {sample}."
+        )
+    allowed = SUPPORTED_EXTS | (RAW_EXTS if raw_decoder_available() else set())
     if source.is_dir():
-        raw_files = [p for p in candidates if p.suffix.lower() in RAW_EXTS]
-        if raw_files:
-            raise ValueError(f"RAW/DNG is unavailable; input folder contains {raw_files[0].relative_to(source)}")
-        files = [p for p in candidates if p.suffix.lower() in SUPPORTED_EXTS]
+        files = [p for p in candidates if p.suffix.lower() in allowed]
     else:
         files = candidates
-    if not files or any(p.suffix.lower() not in SUPPORTED_EXTS for p in files):
-        raise ValueError("No supported RGB inputs; RAW/DNG is unavailable")
+    if not files or any(p.suffix.lower() not in allowed for p in files):
+        raise ValueError("No supported RGB inputs; RAW/DNG needs the optional raw extra when those files are present")
     return files
 
 
@@ -168,6 +199,12 @@ def run(args: argparse.Namespace) -> int:
     if film_name is None and (film_strength != 1.0 or film_seed_value != 0 or not film_spatial):
         raise ValueError("--film-strength, --film-seed and --film-color-only require --film")
     recipe = load_recipe(str(film_name)) if film_name else None
+    raw_white_balance = str(getattr(args, "raw_white_balance", "camera"))
+    raw_wb_gains = getattr(args, "raw_wb_gains", None)
+    raw_demosaic = str(getattr(args, "raw_demosaic", "ahd"))
+    raw_half_size = bool(getattr(args, "raw_half_size", False))
+    if raw_white_balance == "custom" and not raw_wb_gains:
+        raise ValueError("--raw-white-balance custom requires --raw-wb-gains R,G,B")
     policy = _policy_from_args(args)
     manifest: dict[str, Any] = {
         "status": "running", "working_space": "encoded sRGB", "network": "disabled_by_design",
@@ -175,6 +212,14 @@ def run(args: argparse.Namespace) -> int:
         "lut_sha256": lut.source_sha256 if lut else None,
         "normalize_strength": args.normalize_strength, "lut_strength": args.lut_strength,
         "film": film_manifest(recipe, strength=film_strength, seed=film_seed_value, spatial=film_spatial) if recipe is not None else inactive_film_manifest(),
+        "raw": {
+            "decoder_available": raw_decoder_available(),
+            "white_balance": raw_white_balance,
+            "wb_gains": list(raw_wb_gains) if raw_wb_gains else None,
+            "demosaic": raw_demosaic,
+            "half_size": raw_half_size,
+            "contract": "raw-linear-srgb-iec-v1",
+        },
         "format": args.format, "untagged_policy": policy, "items": [], "failures": [],
         "total_inputs": len(files),
         "active_input": None, "active_stage": None,
@@ -221,8 +266,9 @@ def run(args: argparse.Namespace) -> int:
             def decode(current_src: Path = src, hashes: dict[str, str] = captured) -> tuple[np.ndarray, dict[str, str]]:
                 hashes["hash"] = hashlib.sha256(current_src.read_bytes()).hexdigest()
                 return load_image(
-                    current_src, max_long_edge=args.max_long_edge, assume_srgb=(policy == "explicit"),
-                    untagged_policy=policy, read_metadata=False,
+                    current_src, max_long_edge=args.max_long_edge, raw_half_size=raw_half_size,
+                    assume_srgb=(policy == "explicit"), untagged_policy=policy, read_metadata=False,
+                    raw_white_balance=raw_white_balance, raw_wb_gains=raw_wb_gains, raw_demosaic=raw_demosaic,
                 )
 
             decoded = stage("decode", decode)
@@ -277,8 +323,10 @@ def run(args: argparse.Namespace) -> int:
                     continue
                 pixels = pixels * (1 - args.lut_strength) + transformed * args.lut_strength
 
-            def export_current(current: np.ndarray = pixels, target: Path = destination) -> None:
-                save_image(current, target)
+            def export_current(
+                current: np.ndarray = pixels, target: Path = destination, metadata: dict[str, str] = color,
+            ) -> None:
+                save_image(current, target, preserved_exif=preserved_exif_from_color(metadata))
 
             if stage("export", export_current) is _SKIP:
                 continue

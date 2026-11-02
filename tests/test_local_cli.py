@@ -122,7 +122,8 @@ def test_cli_default_preview_size_and_explicit_full_size(tmp_path, monkeypatch):
     assert hashlib.sha256(source.read_bytes()).hexdigest() == before
 
 
-def test_cli_mixed_raw_folder_rejected_before_any_export(tmp_path):
+def test_cli_mixed_raw_folder_rejected_before_any_export(tmp_path, monkeypatch):
+    monkeypatch.setattr(local_cli, "raw_decoder_available", lambda: False)
     source, _ = fixture(tmp_path)
     (source / "unsupported.dng").write_bytes(b"synthetic unsupported input")
     before = digest(source)

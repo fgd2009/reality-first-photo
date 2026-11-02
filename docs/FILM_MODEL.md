@@ -65,7 +65,7 @@ Highlight exposure above `threshold` is multiplied by `gain_rgb` and spread with
 
 ### 7. CIEDE2000 scaffold
 
-`reality_first_normalization.metrics.delta_e` converts encoded sRGB to CIE L\*a\*b\* with the IEC primaries and D65, then evaluates CIEDE2000. `reality-first-photo delta-e` prints mean, median, p95 and max. `threshold` is always null. The command does not decide whether two images look like the same film. The unit test checks the published Sharma, Wu and Dalal pairs to four decimal places. Those pairs test the formula. They are not a film trial.
+`reality_first_normalization.metrics.delta_e` converts encoded sRGB to CIE L\*a\*b\* with the IEC primaries and D65, then evaluates CIEDE2000. `reality-first-photo delta-e` prints mean, median, p95 and max. The default gate is mean ≤ 10 and 95th percentile ≤ 20. Those two numbers are placeholders. Passing them does not mean an image matches a film stock. `--report-only` skips the gate. A directory described in [REFERENCE_SET.md](REFERENCE_SET.md) can hold pairs you are allowed to use. The unit test checks the published Sharma, Wu and Dalal pairs to four decimal places. Those pairs test the formula. They are not a film trial.
 
 ## Sources
 
@@ -88,9 +88,9 @@ Manufacturer data sheets were not digitized. Using one later would require readi
 
 SpektraFilm is GPL-3.0, its film configuration data is CC BY-SA 4.0, and its LUTs have their own restrictions. SpektraLab is a fork whose license was not reviewed, because this work did not open that project's code, data or LUTs. Nothing in this module was transcribed from either project. The names appear in the README only as an acknowledgement that those tools encouraged an open, offline film-simulation tool.
 
-## RAW is still unsupported
+## RAW
 
-Pillow, NumPy and tifffile do not decode camera RAW. `rawpy` 0.28.0 is MIT ([rawpy license](https://github.com/letmaik/rawpy/blob/main/LICENSE)) but it wraps LibRaw, which is LGPL-2.1 ([LICENSE.LibRaw](https://github.com/letmaik/rawpy/blob/main/LICENSE.LibRaw)). The project currently distributes only MIT/BSD dependencies. LibRaw's LGPL obligations on a wheel, and the GPL demosaic packs that rawpy wheels exclude ([rawpy on PyPI](https://pypi.org/project/rawpy/)), are an author decision, not a silent dependency. A RAW path would also need a written decode contract: demosaic, white balance, camera matrix and transfer. The color contract already refuses to invent that from output primaries. No real RAW file was used here.
+RAW is optional. Install `reality-first-photo[raw]` (`rawpy==0.26.1`). The decode contract, versions, EXIF allowlist, and the fact that this repository does not vendor LibRaw are in [RAW_CONTRACT.md](RAW_CONTRACT.md). Tests use a synthetic DNG generated in-repo, not a camera file. Real-camera RAW is still unverified.
 
 ## Author choices still open
 

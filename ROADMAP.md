@@ -12,7 +12,7 @@ This plan starts from **0.1.0a3**. Its [validation record](VALIDATION.md) report
 | Completed at the baseline | Tested color/provenance contracts and explicit failures for unsupported inputs, changed inputs/LUTs, existing outputs and partial/cancelled runs. See the validation record for the exact scope. |
 | Unverified | Actual HTML browser appearance. The managed browser rejected local-file navigation with `ERR_BLOCKED_BY_ADMINISTRATOR`; HTML structure/link checks are not visual browser verification. |
 | Unverified | Independent user completion, preferred results, adoption, repeat use, real-photo quality, native Mac interaction and broad platform compatibility. No trial outcomes are recorded by this plan. |
-| Not doing in this stage | A full GUI, RAW decoding, commercial LUT bundles, automated best-image selection, cloud processing, telemetry, paid promotion or unsolicited outreach. |
+| Not doing in this stage | A full GUI, commercial LUT bundles, automated best-image selection, cloud processing, telemetry, paid promotion or unsolicited outreach. A later optional RAW path exists; it is not part of the completed baseline in this table. |
 
 The browser restriction must not be bypassed by changing policy, networking or serving files as a workaround. A future visual check needs an environment where normal local-file viewing is permitted. Until then, retain the limitation explicitly.
 

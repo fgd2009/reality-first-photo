@@ -358,7 +358,7 @@ def main(argv=None) -> int:
         description="Privately compare four routes. Without --film: reference, normalization, LUT, and both. With --film: reference, normalization, film, and normalization + film.",
         epilog="Open OUTPUT/index.html locally. Exports are 8-bit sRGB PNG previews; sources are not overwritten. The film model is unverified against physical film.",
     )
-    parser.add_argument("--input", type=Path, required=True, help="RGB file or folder. Untagged inputs are assumed to be encoded sRGB unless --strict-color is set. RAW and symlinks are unsupported.")
+    parser.add_argument("--input", type=Path, required=True, help="RGB file or folder. Untagged inputs are assumed to be encoded sRGB unless --strict-color is set. RAW needs the optional raw extra. Symlinks are unsupported.")
     parser.add_argument("--output", type=Path, required=True, help="New directory outside the input tree; no overwrite.")
     parser.add_argument("--lut", type=Path, help="Your local red-fastest encoded-sRGB 3D CUBE. Required unless --film is set.")
     parser.add_argument("--film", help="Bundled film recipe id or a JSON recipe file. Replaces the LUT routes when set. A LUT can still be applied after the film.")

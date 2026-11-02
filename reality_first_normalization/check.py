@@ -64,10 +64,7 @@ def inspect_inputs(source: Path, *, lut_path: Path | None = None, format: str = 
             entry: dict[str, Any] = {"input_name": name, "status": "checking"}
             report["items"].append(entry)
             extension = path.suffix.lower()
-            if extension in RAW_EXTS:
-                entry.update(status="blocked", error="RAW/DNG is unsupported, including inside mixed folders.",
-                             action="Export a separate tagged RGB sRGB copy in a trusted RAW developer first.")
-            elif extension not in SUPPORTED_EXTS:
+            if extension not in SUPPORTED_EXTS | RAW_EXTS:
                 entry.update(status="ignored" if source.is_dir() else "blocked",
                              error="Unsupported extension; folder exports ignore it, single-file exports reject it.")
             else:
@@ -101,7 +98,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="reality-first-photo check",
         description="Check local files, ICC decisions and an optional LUT without creating exports.",
-        epilog="This fully decodes each image using the export reader; large-image memory limits still apply. No EXIF helper or network calls.",
+        epilog="This fully decodes each image using the export reader; large-image memory limits still apply. RAW needs the optional raw extra. No EXIF helper or network calls.",
     )
     parser.add_argument("--input", type=Path, required=True, help="Local file or folder; filenames are printed locally.")
     parser.add_argument("--lut", type=Path, help="Optional local encoded-sRGB 3D CUBE to validate.")

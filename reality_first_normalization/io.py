@@ -245,20 +245,38 @@ def _load_tiff(path: Path, policy: str) -> tuple[np.ndarray, dict[str, str]]:
     return arr, _color_metadata(source_icc, decision, assumption)
 
 
-def load_image(path: Path, max_long_edge: int = 0, raw_half_size: bool = False, *, assume_srgb: bool = False, untagged_policy: str | None = None, read_metadata: bool = True) -> tuple[np.ndarray, dict[str, str]]:
+def load_image(
+    path: Path,
+    max_long_edge: int = 0,
+    raw_half_size: bool = False,
+    *,
+    assume_srgb: bool = False,
+    untagged_policy: str | None = None,
+    read_metadata: bool = True,
+    raw_white_balance: str = "camera",
+    raw_wb_gains: tuple[float, float, float] | None = None,
+    raw_demosaic: str = "ahd",
+) -> tuple[np.ndarray, dict[str, str]]:
     """Decode to encoded sRGB.
 
     The library default rejects untagged inputs. Pass ``assume_srgb=True`` for an explicit
     declaration, or ``untagged_policy='default_assume'`` for the CLI's warned assumption.
     Neither path accepts a corrupt or non-RGB embedded profile.
+    RAW uses the contract in docs/RAW_CONTRACT.md and does not call the external EXIF helper.
     """
     policy = resolve_untagged_policy(assume_srgb, untagged_policy)
     ext = path.suffix.lower()
     if ext in RAW_EXTS:
-        raise ColorManagementError(
-            "RAW is unsupported in this preview: the decode transfer curve and real RAW samples are not verified, "
-            "so the file is not assumed to be sRGB."
+        from .raw_decode import decode_raw
+
+        decoded, raw_color = decode_raw(
+            path,
+            white_balance=raw_white_balance,
+            wb_gains=raw_wb_gains,
+            demosaic=raw_demosaic,
+            half_size=raw_half_size,
         )
+        return resize_long_edge(decoded, max_long_edge), raw_color
     exif = read_exif(path) if read_metadata else {}
     if ext in TIFF_EXTS:
         arr, color = _load_tiff(path, policy)
@@ -293,11 +311,19 @@ def load_image(path: Path, max_long_edge: int = 0, raw_half_size: bool = False, 
     return resize_long_edge(arr, max_long_edge), exif
 
 
-def save_image(arr: np.ndarray, path: Path, jpeg_quality: int = 94, *, color_space: str = "sRGB") -> None:
+def save_image(
+    arr: np.ndarray,
+    path: Path,
+    jpeg_quality: int = 94,
+    *,
+    color_space: str = "sRGB",
+    preserved_exif: dict[str, str] | None = None,
+) -> None:
     """Export working sRGB pixels; never attach an untransformed input profile.
 
     Contract: caller arrays use the encoded sRGB working primaries/transfer curve.
     TIFF is 16-bit; PNG/JPEG quantize to 8-bit. JPEG is also lossy.
+    ``preserved_exif`` copies an allowlist of technical tags. GPS and MakerNote are not written.
     """
     if color_space != "sRGB":
         raise ColorManagementError("Export only accepts working sRGB. Convert pixels to that color space first.")
@@ -310,9 +336,51 @@ def save_image(arr: np.ndarray, path: Path, jpeg_quality: int = 94, *, color_spa
     if ext in TIFF_EXTS and tifffile is None:
         raise ColorManagementError("16-bit TIFF export requires tifffile; refusing to fall back to 8-bit.")
     path.parent.mkdir(parents=True, exist_ok=True)
+    tags = {key: value for key, value in (preserved_exif or {}).items() if value}
     if ext in TIFF_EXTS:
-        tifffile.imwrite(path, to_uint16(arr), photometric="rgb", iccprofile=profile)
-    elif ext in JPEG_EXTS:
-        Image.fromarray(to_uint8(arr), "RGB").save(path, quality=jpeg_quality, subsampling=1, icc_profile=profile)
+        tifffile.imwrite(
+            path, to_uint16(arr), photometric="rgb", iccprofile=profile, extratags=_tiff_exif_tags(tags),
+        )
     else:
-        Image.fromarray(to_uint8(arr), "RGB").save(path, icc_profile=profile)
+        image = Image.fromarray(to_uint8(arr), "RGB")
+        exif_bytes = _pillow_exif(tags) if tags else None
+        if ext in JPEG_EXTS:
+            if exif_bytes is None:
+                image.save(path, quality=jpeg_quality, subsampling=1, icc_profile=profile)
+            else:
+                image.save(path, quality=jpeg_quality, subsampling=1, icc_profile=profile, exif=exif_bytes)
+        elif exif_bytes is None:
+            image.save(path, icc_profile=profile)
+        else:
+            image.save(path, icc_profile=profile, exif=exif_bytes)
+
+
+def preserved_exif_from_color(color: dict[str, str]) -> dict[str, str]:
+    """Technical tags recorded by the RAW decoder, if this image had any."""
+    raw = color.get("PreservedExif")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    return {str(key): str(value) for key, value in parsed.items() if value}
+
+
+def _pillow_exif(tags: dict[str, str]) -> bytes:
+    exif = Image.Exif()
+    for name, tag_id in (("Make", 271), ("Model", 272), ("DateTime", 306)):
+        if tags.get(name):
+            exif[tag_id] = tags[name]
+    return exif.tobytes()
+
+
+def _tiff_exif_tags(tags: dict[str, str]) -> list[tuple[int, int, int | None, object, bool]]:
+    extra: list[tuple[int, int, int | None, object, bool]] = []
+    for tag_id, name in ((271, "Make"), (272, "Model"), (306, "DateTime")):
+        text = tags.get(name)
+        if text:
+            extra.append((tag_id, 2, None, text + "\x00", True))
+    return extra

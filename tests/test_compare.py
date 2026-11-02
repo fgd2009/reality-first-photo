@@ -282,8 +282,10 @@ def test_same_basenames_and_hostile_filenames_render_as_safe_local_links(generat
 
 
 @pytest.mark.parametrize("problem", ["missing_lut", "invalid_icc", "raw"])
-def test_invalid_input_or_missing_lut_cannot_produce_a_success_page(generated, tmp_path, problem):
+def test_invalid_input_or_missing_lut_cannot_produce_a_success_page(generated, tmp_path, problem, monkeypatch):
     source, lut = generated
+    if problem == "raw":
+        monkeypatch.setattr(local_cli, "raw_decoder_available", lambda: False)
     if problem == "missing_lut":
         lut = tmp_path / "missing.cube"
     elif problem == "invalid_icc":

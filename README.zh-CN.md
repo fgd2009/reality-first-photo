@@ -57,7 +57,7 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 报告不会默认选出最佳结果。可以通过图片旁的链接单独打开/保存导出图，并展开详情检查各路强度、实际归一化操作和 ICC 决策。默认归一化强度为 0.6、LUT 强度为 1、预览长边为 2048；可通过 `--normalize-strength`、`--lut-strength` 和 `--max-long-edge` 调整。比较结果固定导出为**附带工作 sRGB ICC 的 8 位 PNG**。
 
-处理自己的图片时，将 `--input`、`--lut` 换为本地路径，并选择新的输出目录。未加 `--film` 时，`compare` 必须指定受支持的 LUT。RAW，以及无效或非 RGB 的 ICC，仍会被拒绝。没有 ICC 的 JPEG、PNG 和支持的 TIFF **默认按编码 sRGB 处理**：命令会打印警告，并在 manifest 与 HTML 报告中记录 `default_assume_srgb_untagged_rgb8` 或 `default_assume_srgb_untagged_high_depth`，以及 `UntaggedAssumption: default`。`--assume-srgb` 记录同样的像素为显式声明（`explicit_assume_srgb_…`）。`--strict-color` 恢复为拒绝无 ICC 输入。这两个参数都不能绕过无效的内嵌 ICC。Python 的 `load_image` 默认仍然严格，除非调用方明确选择。
+处理自己的图片时，将 `--input`、`--lut` 换为本地路径，并选择新的输出目录。未加 `--film` 时，`compare` 必须指定受支持的 LUT。未安装可选的 `raw` extra 时，RAW 仍会在创建输出前停止运行。无效或非 RGB 的 ICC 仍会被拒绝。没有 ICC 的 JPEG、PNG 和支持的 TIFF **默认按编码 sRGB 处理**：命令会打印警告，并在 manifest 与 HTML 报告中记录 `default_assume_srgb_untagged_rgb8` 或 `default_assume_srgb_untagged_high_depth`，以及 `UntaggedAssumption: default`。`--assume-srgb` 记录同样的像素为显式声明（`explicit_assume_srgb_…`）。`--strict-color` 恢复为拒绝无 ICC 输入。这两个参数都不能绕过无效的内嵌 ICC。Python 的 `load_image` 默认仍然严格，除非调用方明确选择。
 
 本地报告由 `index.html`、`compare.json` 和四个图片文件夹组成，包含输入文件名及哈希、LUT 信息和派生图像；程序不会上传它们。移动报告时请保留整个文件夹，确保相对图片链接有效。命令不会自动启动浏览器或服务器。必须以 `compare.json` 的 `complete` 状态判断完成；强制终止可能在最终清单提交前留下 HTML，不能仅凭页面存在认定成功。
 
@@ -85,7 +85,7 @@ reality-first-photo --input /path/to/tagged-images --output /path/to/new-output 
 
 默认预览长边为 2048 像素。用 `--max-long-edge 0` 明确保留原尺寸；解码发生在缩放之前，大图内存占用和性能尚未验证。
 
-每次运行都需选择**新的输出目录**；已有目录会被拒绝，输出也不能位于输入文件夹内部。文件夹输入会递归查找 JPEG、PNG、TIFF；如发现已知 RAW 扩展名，整次运行会在创建输出前报错；其他扩展名会被忽略。`manifest.json` 记录运行状态、完成文件、输入哈希和色彩决策。每个文件还记录 `normalization.applied` 和 `normalization.operations`；执行归一化时，后者包含实际的 `exposure_scale` 与 `white_balance_gains_rgb`。这些是计算得到的处理参数，不是照片质量评分。单个文件失败时会跳过该文件并继续处理其余文件，退出码为 2。`failures` 列出全部跳过的输入；`failed_input`、`failed_stage` 和 `error` 重复第一条。只要还有文件未成功，`status` 就保持 `failed`。比较命令同样跳过失败文件，为成功的输入写出报告，状态为 `partial`，退出码为 2。取消，或检查点无法写入，仍会停止整次运行。修正原因后换新目录重试。强制终止可能留下 `running` 或没有最终记录，应视为未完成。验证包含注入中断，以及 Linux 上在受控处理检查点发送的真实 SIGINT/SIGTERM 信号；实体键盘和 GUI 行为仍未验证。
+每次运行都需选择**新的输出目录**；已有目录会被拒绝，输出也不能位于输入文件夹内部。文件夹输入会递归查找 JPEG、PNG、TIFF。只有安装了 `raw` extra 才会把 RAW/DNG 当作输入；否则这些文件仍会在创建输出前让整次运行失败。其他扩展名会被忽略。`manifest.json` 记录运行状态、完成文件、输入哈希和色彩决策。每个文件还记录 `normalization.applied` 和 `normalization.operations`；执行归一化时，后者包含实际的 `exposure_scale` 与 `white_balance_gains_rgb`。这些是计算得到的处理参数，不是照片质量评分。单个文件失败时会跳过该文件并继续处理其余文件，退出码为 2。`failures` 列出全部跳过的输入；`failed_input`、`failed_stage` 和 `error` 重复第一条。只要还有文件未成功，`status` 就保持 `failed`。比较命令同样跳过失败文件，为成功的输入写出报告，状态为 `partial`，退出码为 2。取消，或检查点无法写入，仍会停止整次运行。修正原因后换新目录重试。强制终止可能留下 `running` 或没有最终记录，应视为未完成。验证包含注入中断，以及 Linux 上在受控处理检查点发送的真实 SIGINT/SIGTERM 信号；实体键盘和 GUI 行为仍未验证。
 
 ## 遇到错误时
 
@@ -108,15 +108,16 @@ reality-first-photo --input photo.png --output film-out --film warm-negative-400
 reality-first-photo compare --input photo.png --output film-compare --film warm-negative-400 --film-seed 1
 reality-first-photo film-lut --recipe warm-negative-400 --output warm-negative-400.cube --size 17
 reality-first-photo delta-e --reference a.png --sample b.png
+python -m pip install 'reality-first-photo[raw]'
 ```
 
-manifest 会记录配方文件哈希、解释后参数的哈希、模型版本、强度、种子，以及每张图的颗粒种子。在 NumPy 2.4.6 下，相同种子会重复同一颗粒。`--film-color-only` 和 `film-lut` 不包含颗粒与 halation，因为 CUBE 存不下这些空间效应。`delta-e` 只输出 CIEDE2000 汇总，不判断结果像不像胶片。文献来源和未加入 RAW 的原因见 [docs/FILM_MODEL.md](docs/FILM_MODEL.md)。
+manifest 会记录配方文件哈希、解释后参数的哈希、模型版本、强度、种子，以及每张图的颗粒种子。在 NumPy 2.4.6 下，相同种子会重复同一颗粒。`--film-color-only` 和 `film-lut` 不包含颗粒与 halation，因为 CUBE 存不下这些空间效应。`delta-e` 的默认门槛是平均 ΔE ≤ 10、95 分位数 ≤ 20，只是占位，通过也不表示像某款胶片。自备图像对的目录格式见 [docs/REFERENCE_SET.md](docs/REFERENCE_SET.md)。RAW 的安装、LibRaw 许可和解码契约见 [docs/RAW_CONTRACT.md](docs/RAW_CONTRACT.md)。已核对和尚未获准使用的校准数据源见 [docs/CALIBRATION_SOURCES.md](docs/CALIBRATION_SOURCES.md)，自己拍摄色卡的步骤见 [docs/CALIBRATION_CAPTURE.md](docs/CALIBRATION_CAPTURE.md)。
 
 SpektraFilm 与 SpektraLab 作为鼓励这一类离线胶片模拟工具的开源项目，在此致谢。本仓库没有使用它们的代码、LUT、配置文件或常数表。
 
 ## 预览边界
 
-由你选择偏好，程序不会给图像打分或自动选优。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。RAW、完整 GUI 和原生应用安装包不在当前范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。
+由你选择偏好。占位的 CIEDE2000 门槛不是胶片评分。证据限于合成输入和[验证记录](VALIDATION.md)中的检查，不代表真实照片质量或物理胶片准确性；尚未完成独立用户试用。真实相机 RAW、完整 GUI 和原生应用安装包不在已验证范围内；跨平台行为与真实浏览器效果仍未验证。详见[支持限制](#支持范围与限制)和[浏览器检查状态](docs/TROUBLESHOOTING.md#pending-manual-html-visual-check)。
 
 ## 支持范围与限制
 
@@ -129,7 +130,7 @@ SpektraFilm 与 SpektraLab 作为鼓励这一类离线胶片模拟工具的开�
 | 缩放与导出 | float32 分通道缩放；导出 16 位 TIFF 或 8 位 PNG/JPEG，均附工作 ICC。JPEG 为有损格式。 |
 | LUT | 红轴最快的 3D CUBE，三线性插值、有限正域宽、输出节点位于 [0,1]；支持默认域和 `DOMAIN_MIN`/`DOMAIN_MAX`；拒绝未知指令、1D/组合表和 `LUT_3D_INPUT_RANGE`，不自动推断 log/HDR 转换。 |
 
-RAW/DNG、灰度、CMYK、alpha/透明色键、16 位 PNG、压缩或多页 TIFF、打包位深 TIFF、非默认 TIFF 方向均会被拒绝。完整 GUI、商业预设和原生应用安装包不在本预览范围内。尚未验证真实照片、真实 RAW、商业 LUT、物理胶片准确性或跨平台行为。
+未安装 `raw` extra 时，RAW/DNG 仍会在创建输出前停止运行。安装之后按 [docs/RAW_CONTRACT.md](docs/RAW_CONTRACT.md) 解码；测试只用仓库里生成的合成 DNG。灰度、CMYK、alpha/透明色键、16 位 PNG、压缩或多页 TIFF、打包位深 TIFF、非默认 TIFF 方向均会被拒绝。完整 GUI、商业预设和原生应用安装包不在本预览范围内。尚未验证真实照片、真实相机 RAW、商业 LUT、物理胶片准确性或跨平台行为。
 
 ## 开发与验证
 

@@ -154,8 +154,17 @@ def delta_e2000_srgb(
     )
 
 
+# Round placeholders. They are not a film-match tolerance.
+PLACEHOLDER_MEAN_MAX = 10.0
+PLACEHOLDER_P95_MAX = 20.0
+PLACEHOLDER_NOTE = (
+    "Placeholder CIEDE2000 gates on the mean and the 95th percentile. "
+    "Passing them does not mean the image matches any film stock."
+)
+
+
 def summarize_delta_e2000(reference: np.ndarray, sample: np.ndarray) -> dict[str, Any]:
-    """Aggregate a per-pixel CIEDE2000 map. No pass threshold is applied."""
+    """Aggregate a per-pixel CIEDE2000 map. Thresholds are applied separately."""
     if reference.shape != sample.shape or reference.ndim != 3 or reference.shape[2] != 3:
         raise ValueError("delta E summary expects two images of shape (height, width, 3)")
     values = delta_e2000_srgb(reference, sample).reshape(-1)
@@ -169,9 +178,50 @@ def summarize_delta_e2000(reference: np.ndarray, sample: np.ndarray) -> dict[str
         "max": float(np.max(values)),
         "metric": "CIEDE2000",
         "working_space": "encoded sRGB",
-        "threshold": None,
-        "note": "Descriptive color difference only. Not a film-accuracy score and not a pass/fail gate.",
     }
+
+
+def apply_delta_e_gate(
+    summary: dict[str, Any],
+    *,
+    mean_max: float | None,
+    p95_max: float | None,
+    role: str,
+) -> dict[str, Any]:
+    """Attach a pass/fail gate. ``role`` is recorded and is never treated as a film score."""
+    judged = dict(summary)
+    if mean_max is None and p95_max is None:
+        judged.update({
+            "passed": None,
+            "failures": [],
+            "thresholds": {"mean_max": None, "p95_max": None, "role": "not_applied"},
+            "note": "No CIEDE2000 gate was applied. This is not a film-accuracy score.",
+        })
+        return judged
+    mean_limit = PLACEHOLDER_MEAN_MAX if mean_max is None else mean_max
+    p95_limit = PLACEHOLDER_P95_MAX if p95_max is None else p95_max
+    _positive("mean_max", mean_limit)
+    _positive("p95_max", p95_limit)
+    failures: list[str] = []
+    if float(judged["mean"]) > mean_limit:
+        failures.append("mean")
+    if float(judged["p95"]) > p95_limit:
+        failures.append("p95")
+    judged.update({
+        "passed": not failures,
+        "failures": failures,
+        "thresholds": {"mean_max": mean_limit, "p95_max": p95_limit, "role": role},
+        "note": PLACEHOLDER_NOTE if role == "placeholder" else (
+            "User CIEDE2000 gate on the mean and the 95th percentile. "
+            "It does not mean the image matches any film stock."
+        ),
+    })
+    return judged
+
+
+def _positive(name: str, value: float) -> None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(value) or float(value) < 0.0:
+        raise ValueError(f"{name} must be a finite number >= 0")
 
 
 def _lab_f(channel: np.ndarray) -> np.ndarray:
@@ -184,46 +234,89 @@ def _lab_f(channel: np.ndarray) -> np.ndarray:
     return transformed
 
 
+def _load_pair(reference: Path, sample: Path, max_long_edge: int, policy: str) -> dict[str, Any]:
+    from ..io import load_image
+
+    reference_pixels, _reference_color = load_image(
+        reference, max_long_edge=max_long_edge, assume_srgb=(policy == "explicit"), untagged_policy=policy,
+    )
+    sample_pixels, _sample_color = load_image(
+        sample, max_long_edge=max_long_edge, assume_srgb=(policy == "explicit"), untagged_policy=policy,
+    )
+    if reference_pixels.shape != sample_pixels.shape:
+        raise ValueError(
+            f"Images differ in shape after decode: reference {reference_pixels.shape[1]}x{reference_pixels.shape[0]}, "
+            f"sample {sample_pixels.shape[1]}x{sample_pixels.shape[0]}"
+        )
+    return summarize_delta_e2000(reference_pixels, sample_pixels)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="reality-first-photo delta-e",
-        description="Summarize CIEDE2000 between two encoded-sRGB images. This does not score film likeness.",
+        description=(
+            "CIEDE2000 between two encoded-sRGB images, or every pair in a reference set. "
+            "Default gates are placeholders and do not score film likeness."
+        ),
     )
-    parser.add_argument("--reference", type=Path, required=True)
-    parser.add_argument("--sample", type=Path, required=True)
-    parser.add_argument("--json", action="store_true", help="Print the summary as one JSON object.")
-    parser.add_argument("--max-long-edge", type=int, default=0, help="Decode size. Both images must still match. Default 0 keeps full size.")
+    parser.add_argument("--reference", type=Path, help="Encoded-sRGB reference image. Not used with --reference-set.")
+    parser.add_argument("--sample", type=Path, help="Encoded-sRGB sample image. Not used with --reference-set.")
+    parser.add_argument("--reference-set", type=Path, help="Directory or reference-set.json. See docs/REFERENCE_SET.md.")
+    parser.add_argument("--json", action="store_true", help="Print machine-readable JSON. Reference sets always print JSON.")
+    parser.add_argument("--report-only", action="store_true", help="Print the summary and do not apply a pass/fail gate.")
+    parser.add_argument("--mean-max", type=float, help=f"Fail if the mean CIEDE2000 is above this. Default placeholder: {PLACEHOLDER_MEAN_MAX}.")
+    parser.add_argument("--p95-max", type=float, help=f"Fail if the 95th percentile is above this. Default placeholder: {PLACEHOLDER_P95_MAX}.")
+    parser.add_argument("--max-long-edge", type=int, default=0, help="Decode size. Both images in a pair must still match. Default 0 keeps full size.")
     from ..local_cli import add_color_policy_arguments
 
     add_color_policy_arguments(parser)
     args = parser.parse_args(argv)
     try:
-        from ..io import load_image
         from ..local_cli import untagged_policy_from_flags
 
+        if args.reference_set is not None and (args.reference is not None or args.sample is not None):
+            raise ValueError("Use either --reference-set or --reference with --sample, not both")
+        if args.reference_set is None and (args.reference is None or args.sample is None):
+            raise ValueError("delta-e needs --reference and --sample, or --reference-set")
         policy = untagged_policy_from_flags(assume_srgb=args.assume_srgb, strict_color=args.strict_color)
-        reference, _reference_color = load_image(
-            args.reference, max_long_edge=args.max_long_edge, assume_srgb=(policy == "explicit"), untagged_policy=policy,
+        role = "not_applied" if args.report_only else (
+            "placeholder" if args.mean_max is None and args.p95_max is None else "user"
         )
-        sample, _sample_color = load_image(
-            args.sample, max_long_edge=args.max_long_edge, assume_srgb=(policy == "explicit"), untagged_policy=policy,
-        )
-        if reference.shape != sample.shape:
-            raise ValueError(
-                f"Images differ in shape after decode: reference {reference.shape[1]}x{reference.shape[0]}, "
-                f"sample {sample.shape[1]}x{sample.shape[0]}"
+        mean_max = None if args.report_only else args.mean_max
+        p95_max = None if args.report_only else args.p95_max
+        if args.reference_set is not None:
+            from .reference_set import evaluate_reference_set
+
+            summary = evaluate_reference_set(
+                args.reference_set,
+                max_long_edge=args.max_long_edge,
+                policy=policy,
+                mean_max=mean_max,
+                p95_max=p95_max,
+                role=role,
+                report_only=args.report_only,
             )
-        summary = summarize_delta_e2000(reference, sample)
+            print(json.dumps(summary, indent=2, allow_nan=False), flush=True)
+        else:
+            summary = apply_delta_e_gate(
+                _load_pair(args.reference, args.sample, args.max_long_edge, policy),
+                mean_max=PLACEHOLDER_MEAN_MAX if mean_max is None and not args.report_only else mean_max,
+                p95_max=PLACEHOLDER_P95_MAX if p95_max is None and not args.report_only else p95_max,
+                role=role if not args.report_only else "not_applied",
+            )
+            if args.json:
+                print(json.dumps(summary, indent=2, allow_nan=False), flush=True)
+            else:
+                print(f"pixels: {summary['pixels']}", flush=True)
+                print(f"mean: {summary['mean']:.6f}", flush=True)
+                print(f"median: {summary['median']:.6f}", flush=True)
+                print(f"p95: {summary['p95']:.6f}", flush=True)
+                print(f"max: {summary['max']:.6f}", flush=True)
+                print(f"passed: {summary['passed']}", flush=True)
+                print(summary["note"], flush=True)
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
-    if args.json:
-        print(json.dumps(summary, indent=2, allow_nan=False), flush=True)
-    else:
-        print(f"pixels: {summary['pixels']}", flush=True)
-        print(f"mean: {summary['mean']:.6f}", flush=True)
-        print(f"median: {summary['median']:.6f}", flush=True)
-        print(f"p95: {summary['p95']:.6f}", flush=True)
-        print(f"max: {summary['max']:.6f}", flush=True)
-        print(summary["note"], flush=True)
+    if summary.get("passed") is False:
+        return 2
     return 0
