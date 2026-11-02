@@ -57,7 +57,7 @@ reality-first-photo compare --input first-look/input --output first-compare --lu
 
 报告不会默认选出最佳结果。可以通过图片旁的链接单独打开/保存导出图，并展开详情检查各路强度、实际归一化操作和 ICC 决策。默认归一化强度为 0.6、LUT 强度为 1、预览长边为 2048；可通过 `--normalize-strength`、`--lut-strength` 和 `--max-long-edge` 调整。比较结果固定导出为**附带工作 sRGB ICC 的 8 位 PNG**。
 
-处理自己的图片时，将 `--input`、`--lut` 换为本地路径，并选择新的输出目录。`compare` 必须指定受支持的 LUT。RAW，以及无效或非 RGB 的 ICC，仍会被拒绝。没有 ICC 的 JPEG、PNG 和支持的 TIFF **默认按编码 sRGB 处理**：命令会打印警告，并在 manifest 与 HTML 报告中记录 `default_assume_srgb_untagged_rgb8` 或 `default_assume_srgb_untagged_high_depth`，以及 `UntaggedAssumption: default`。`--assume-srgb` 记录同样的像素为显式声明（`explicit_assume_srgb_…`）。`--strict-color` 恢复为拒绝无 ICC 输入。这两个参数都不能绕过无效的内嵌 ICC。Python 的 `load_image` 默认仍然严格，除非调用方明确选择。
+处理自己的图片时，将 `--input`、`--lut` 换为本地路径，并选择新的输出目录。未加 `--film` 时，`compare` 必须指定受支持的 LUT。RAW，以及无效或非 RGB 的 ICC，仍会被拒绝。没有 ICC 的 JPEG、PNG 和支持的 TIFF **默认按编码 sRGB 处理**：命令会打印警告，并在 manifest 与 HTML 报告中记录 `default_assume_srgb_untagged_rgb8` 或 `default_assume_srgb_untagged_high_depth`，以及 `UntaggedAssumption: default`。`--assume-srgb` 记录同样的像素为显式声明（`explicit_assume_srgb_…`）。`--strict-color` 恢复为拒绝无 ICC 输入。这两个参数都不能绕过无效的内嵌 ICC。Python 的 `load_image` 默认仍然严格，除非调用方明确选择。
 
 本地报告由 `index.html`、`compare.json` 和四个图片文件夹组成，包含输入文件名及哈希、LUT 信息和派生图像；程序不会上传它们。移动报告时请保留整个文件夹，确保相对图片链接有效。命令不会自动启动浏览器或服务器。必须以 `compare.json` 的 `complete` 状态判断完成；强制终止可能在最终清单提交前留下 HTML，不能仅凭页面存在认定成功。
 
@@ -93,9 +93,26 @@ reality-first-photo --input /path/to/tagged-images --output /path/to/new-output 
 | --- | --- |
 | 输出目录已经存在 | 换用新目录，例如 `--output first-look-2`，已有输出会保留。 |
 | 新输入没有 ICC | CLI 默认按编码 sRGB 处理，打印警告，并在报告中记录该假设。编码不确定时，请在可信色彩管理工具中重新导出带标签的 RGB sRGB。`--assume-srgb` 记录显式声明；`--strict-color` 改为拒绝该文件。无效的内嵌 ICC 始终被拒绝。 |
-| 找不到 CUBE LUT | 更正 `--lut` 路径，指向自己的受支持 CUBE 文件。普通图像处理命令可在仅需归一化时省略 `--lut`；`compare` 必须指定该参数。 |
+| 找不到 CUBE LUT | 更正 `--lut` 路径，指向自己的受支持 CUBE 文件。普通图像处理命令可在仅需归一化时省略 `--lut`。未加 `--film` 时，`compare` 必须指定 LUT。 |
 
 [故障恢复说明](docs/TROUBLESHOOTING.md)包含只读检查、状态解读和待执行的合成图 HTML 手动视觉检查。受管开发环境的真实浏览器效果仍未验证：本地文件导航返回 `ERR_BLOCKED_BY_ADMINISTRATOR`。不要绕过该策略；HTML 结构测试不等于浏览器视觉验收。
+
+## 参数化胶片模型（未验证）
+
+`--film` 放在归一化之后、用户 LUT 之前。它是一个简化的摄影模型：sRGB 解码、Hurter–Driffield 式特性曲线、3×3 分层感光与染料吸收矩阵（Beer–Lambert）、随密度变化的颗粒，以及高光 halation。内置五套配方使用通用名称，例如 `warm-negative-400`。名称里的数字只是速度档标签，不是测得的 ISO 感光度。参数是本项目自选、并在本模型内部做了灰平衡，不是商业胶片的测量值，也不是从其他胶片模拟项目取来的。
+
+没有任何内置配方与真实胶片扫描对比过。请把它当成未经验证的参数化预览。
+
+```sh
+reality-first-photo --input photo.png --output film-out --film warm-negative-400 --film-seed 1 --format png
+reality-first-photo compare --input photo.png --output film-compare --film warm-negative-400 --film-seed 1
+reality-first-photo film-lut --recipe warm-negative-400 --output warm-negative-400.cube --size 17
+reality-first-photo delta-e --reference a.png --sample b.png
+```
+
+manifest 会记录配方文件哈希、解释后参数的哈希、模型版本、强度、种子，以及每张图的颗粒种子。在 NumPy 2.4.6 下，相同种子会重复同一颗粒。`--film-color-only` 和 `film-lut` 不包含颗粒与 halation，因为 CUBE 存不下这些空间效应。`delta-e` 只输出 CIEDE2000 汇总，不判断结果像不像胶片。文献来源和未加入 RAW 的原因见 [docs/FILM_MODEL.md](docs/FILM_MODEL.md)。
+
+SpektraFilm 与 SpektraLab 作为鼓励这一类离线胶片模拟工具的开源项目，在此致谢。本仓库没有使用它们的代码、LUT、配置文件或常数表。
 
 ## 预览边界
 

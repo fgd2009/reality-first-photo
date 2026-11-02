@@ -6,7 +6,8 @@ from html import escape
 from pathlib import PurePosixPath
 from urllib.parse import quote
 
-_RECIPE_IDS = ("original", "normalized", "lut_only", "normalized_lut")
+_LEGACY_IDS = ("original", "normalized", "lut_only", "normalized_lut")
+_FILM_IDS = ("original", "normalized", "film", "normalized_film")
 
 
 def _text(value: object) -> str:
@@ -58,21 +59,23 @@ def render_comparison_html(report: dict) -> str:
     if report.get("kind") != "four_way_comparison" or report.get("format") != "png":
         raise ValueError("Expected a four_way_comparison report with PNG previews")
     recipes = report.get("recipes")
-    if not isinstance(recipes, list) or len(recipes) != len(_RECIPE_IDS):
+    if not isinstance(recipes, list) or len(recipes) != 4:
         raise ValueError("Comparison report requires exactly four recipes")
     if any(not isinstance(recipe, dict) for recipe in recipes):
         raise ValueError("Invalid comparison recipe")
-    if any(recipe.get("id") not in _RECIPE_IDS for recipe in recipes):
-        raise ValueError("Unknown comparison recipe")
+    recipe_ids = tuple(recipe.get("id") for recipe in recipes)
+    if recipe_ids not in (_LEGACY_IDS, _FILM_IDS):
+        raise ValueError("Comparison report requires the LUT routes or the film routes, in order")
     recipe_by_id = {recipe["id"]: recipe for recipe in recipes}
-    if set(recipe_by_id) != set(_RECIPE_IDS):
-        raise ValueError("Comparison recipe IDs must be unique")
     items = report.get("items")
     if not isinstance(items, list) or not items:
         raise ValueError("Comparison report requires at least one input")
     lut = report.get("lut")
-    if not isinstance(lut, dict):
-        raise ValueError("Comparison report requires LUT metadata")
+    if lut is not None and not isinstance(lut, dict):
+        raise ValueError("Comparison report LUT metadata must be an object or null")
+    film = report.get("film")
+    if film is not None and not isinstance(film, dict):
+        raise ValueError("Comparison report film metadata must be an object or null")
 
     # Validate JSON and every image path before constructing any report markup.
     # A static page cannot observe whether the final status checkpoint committed.
@@ -84,7 +87,7 @@ def render_comparison_html(report: dict) -> str:
         if not isinstance(item, dict) or not isinstance(item.get("variants"), dict):
             raise ValueError("Invalid comparison input or variants")
         cards = []
-        for recipe_id in _RECIPE_IDS:
+        for recipe_id in recipe_ids:
             recipe = recipe_by_id[recipe_id]
             variant = item["variants"].get(recipe_id)
             if not isinstance(variant, dict):
@@ -97,6 +100,15 @@ def render_comparison_html(report: dict) -> str:
                     "Input reference: decoded, ICC-converted/resized sRGB PNG; "
                     "not a source-file copy."
                 )
+            elif recipe_id in {"film", "normalized_film"}:
+                explanation = (
+                    f"Normalization strength: {_text(recipe.get('normalize_strength'))}. "
+                    f"Film strength: {_text(recipe.get('film_strength'))}. "
+                    f"Film recipe: {_text(recipe.get('film_recipe_id'))}. "
+                    f"Seed: {_text(recipe.get('film_seed'))}. "
+                    "Grain and halation are spatial. This parametric model has not been "
+                    "verified against physical film."
+                )
             else:
                 explanation = (
                     f"Normalization strength: {_text(recipe.get('normalize_strength'))}. "
@@ -108,6 +120,7 @@ def render_comparison_html(report: dict) -> str:
                 "input_sha256": item.get("input_sha256"),
                 "normalization": variant.get("normalization"),
                 "color": variant.get("color"),
+                "film": variant.get("film"),
             })
             cards.append(
                 '<figure class="variant">'
@@ -168,12 +181,27 @@ def render_comparison_html(report: dict) -> str:
         "footer{margin-top:36px;font-size:.9rem;color:#45504c}"
         "</style>\n</head>\n<body><main><header>"
         "<h1>Four-way comparison</h1>"
-        '<p class="note">Compare the same input and selected LUT across four recipes. '
-        "No result is selected or rated as best.</p>"
-        '<p class="note">If the command stopped unexpectedly, check <code>compare.json</code>: '
+        + (
+            '<p class="note">Compare the same input and selected LUT across four recipes. '
+            "No result is selected or rated as best.</p>"
+            if recipe_ids == _LEGACY_IDS else
+            '<p class="note">Compare the input reference, normalization, the parametric film model, '
+            "and normalization plus film. No result is selected or rated as best. "
+            "The film model has not been verified against physical film.</p>"
+        )
+        + '<p class="note">If the command stopped unexpectedly, check <code>compare.json</code>: '
         'its status must be <code>complete</code>. This page alone does not establish completion.</p>'
-        f"<p>LUT: <strong>{_text(lut.get('name', ''))}</strong></p>"
-        "<p>This private local report contains input filenames, hashes and derived images. "
+        + (
+            f"<p>LUT: <strong>{_text(lut.get('name', ''))}</strong></p>"
+            if isinstance(lut, dict) else
+            "<p>LUT: none.</p>"
+        )
+        + (
+            f"<p>Film recipe: <strong>{_text(film.get('id', ''))}</strong>. "
+            "Parametric model, unverified against physical film or scans.</p>"
+            if isinstance(film, dict) else ""
+        )
+        + "<p>This private local report contains input filenames, hashes and derived images. "
         "The tool does not upload it. Keep the report folder together when moving it.</p>"
         f"{partial_note}"
         "<details><summary>Report settings and LUT fingerprint</summary>"
@@ -182,5 +210,9 @@ def render_comparison_html(report: dict) -> str:
         + "<footer>PNG previews are 8-bit encoded sRGB with the working ICC. "
         "Normalization parameters record calculations, not photo-quality scores. "
         "The input reference has been decoded, color-managed and resized as requested."
-        "</footer></main></body></html>\n"
+        + (
+            " A film route is a parametric model and is not evidence that the picture matches a physical stock."
+            if recipe_ids == _FILM_IDS else ""
+        )
+        + "</footer></main></body></html>\n"
     )

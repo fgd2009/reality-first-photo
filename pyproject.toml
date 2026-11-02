@@ -27,7 +27,7 @@ Issues = "https://github.com/fgd2009/reality-first-photo/issues"
 include = ["reality_first_normalization*"]
 
 [tool.setuptools.package-data]
-reality_first_normalization = ["data/*.icc", "data/style_profiles/*.json"]
+reality_first_normalization = ["data/*.icc", "data/style_profiles/*.json", "film/data/recipes/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

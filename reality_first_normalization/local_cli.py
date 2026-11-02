@@ -1,4 +1,4 @@
-"""Small local-only CLI using the recovered color core; no model or taste profile."""
+"""Small local-only CLI. The optional film model is parametric and unverified."""
 from __future__ import annotations
 
 import argparse
@@ -13,6 +13,13 @@ import numpy as np
 
 from . import report_state
 from .analysis import analyze_image
+from .film.recipe import load_recipe
+from .film.simulate import (
+    apply_film,
+    film_manifest,
+    inactive_film_item,
+    inactive_film_manifest,
+)
 from .io import RAW_EXTS, SUPPORTED_EXTS, assumption_warning, load_image, save_image
 from .lut import apply_cube_lut, load_cube_lut
 from .normalize import normalize_image
@@ -24,6 +31,16 @@ def unit_float(value: str) -> float:
     number = float(value)
     if not np.isfinite(number) or not 0 <= number <= 1:
         raise argparse.ArgumentTypeError("strength must be finite and between 0 and 1")
+    return number
+
+
+def film_seed(value: str) -> int:
+    try:
+        number = int(value, 10)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("film seed must be an integer") from exc
+    if abs(number) > 2**63 - 1:
+        raise argparse.ArgumentTypeError("film seed must fit in a signed 64-bit integer")
     return number
 
 
@@ -52,7 +69,7 @@ def add_color_policy_arguments(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        description="Local sRGB normalization, then your own CUBE LUT. No network or model calls.",
+        description="Local sRGB normalization, an optional parametric film model, then your own CUBE LUT. No network or model calls.",
         epilog="First time? Run: reality-first-photo demo --output first-look. "
                "This creates synthetic inputs, exports and a labelled comparison.png; no photos or LUT purchase needed. "
                "Check inputs without exports: reality-first-photo check --help. "
@@ -63,6 +80,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--lut", type=Path, help="Your own red-fastest SDR 3D CUBE, authored for encoded sRGB; omit for normalization only.")
     p.add_argument("--normalize-strength", type=unit_float, default=1.0, help="Normalization before the LUT: 0 skips it, 1 is full strength (default: 1).")
     p.add_argument("--lut-strength", type=unit_float, default=1.0, help="Blend with the chosen LUT: 0 keeps normalized pixels, 1 uses the full LUT (default: 1).")
+    p.add_argument("--film", help="Bundled film recipe id or a JSON recipe file. Applied after normalization and before a user LUT. Not verified against physical film.")
+    p.add_argument("--film-strength", type=unit_float, default=1.0, help="Blend with the film model: 0 skips it, 1 is full strength (default: 1). Requires --film.")
+    p.add_argument("--film-seed", type=film_seed, default=0, help="Integer seed for density grain (default: 0). Recorded with the recipe hash. Requires --film.")
+    p.add_argument("--film-color-only", action="store_true", help="Skip grain and halation so the color mapping matches film-lut. Requires --film.")
     p.add_argument("--format", choices=["tiff", "png", "jpeg"], default="tiff", help="TIFF exports 16-bit; PNG/JPEG export 8-bit (default: tiff).")
     p.add_argument("--max-long-edge", type=int, default=2048, help="Preview long edge in pixels (default: 2048). 0 explicitly keeps full size; large-image memory/performance is unverified.")
     add_color_policy_arguments(p)
@@ -140,12 +161,20 @@ def run(args: argparse.Namespace) -> int:
     ext = {"tiff": ".tif", "png": ".png", "jpeg": ".jpg"}[args.format]
     source, output, files, names = plan_inputs(args.input, args.output, args.max_long_edge, ext)
     lut = load_cube_lut(str(args.lut.resolve())) if args.lut else None
+    film_name = getattr(args, "film", None)
+    film_strength = float(getattr(args, "film_strength", 1.0))
+    film_seed_value = int(getattr(args, "film_seed", 0))
+    film_spatial = not bool(getattr(args, "film_color_only", False))
+    if film_name is None and (film_strength != 1.0 or film_seed_value != 0 or not film_spatial):
+        raise ValueError("--film-strength, --film-seed and --film-color-only require --film")
+    recipe = load_recipe(str(film_name)) if film_name else None
     policy = _policy_from_args(args)
     manifest: dict[str, Any] = {
         "status": "running", "working_space": "encoded sRGB", "network": "disabled_by_design",
         "lut_name": args.lut.name if args.lut else None,
         "lut_sha256": lut.source_sha256 if lut else None,
         "normalize_strength": args.normalize_strength, "lut_strength": args.lut_strength,
+        "film": film_manifest(recipe, strength=film_strength, seed=film_seed_value, spatial=film_spatial) if recipe is not None else inactive_film_manifest(),
         "format": args.format, "untagged_policy": policy, "items": [], "failures": [],
         "total_inputs": len(files),
         "active_input": None, "active_stage": None,
@@ -217,6 +246,26 @@ def run(args: argparse.Namespace) -> int:
                     continue
                 pixels = normalized.image
                 normalization = {"applied": True, "operations": normalized.operations}
+            film_item = inactive_film_item()
+            if recipe is not None and film_strength:
+                selected_recipe = recipe
+                sample_hash = captured["hash"]
+
+                def apply_selected_film(
+                    current: np.ndarray = pixels,
+                    chosen=selected_recipe,
+                    identity: str = sample_hash,
+                ) -> Any:
+                    return apply_film(
+                        current, chosen, strength=film_strength, seed=film_seed_value,
+                        sample_id=identity, spatial=film_spatial,
+                    )
+
+                filmed = stage("film", apply_selected_film)
+                if filmed is _SKIP:
+                    continue
+                pixels = filmed.image
+                film_item = filmed.record
             if lut is not None:
                 selected_lut = lut
 
@@ -244,7 +293,7 @@ def run(args: argparse.Namespace) -> int:
                 "input_name": src.name, "input_sha256": captured["hash"],
                 "output": relative.as_posix(), "width": int(pixels.shape[1]),
                 "height": int(pixels.shape[0]), "color": color,
-                "normalization": normalization,
+                "normalization": normalization, "film": film_item,
             })
             manifest.update(active_input=None, active_stage=None)
             checkpoint()
@@ -311,6 +360,12 @@ def main(argv=None) -> int:
     if argv[:1] == ["check"]:
         from .check import main as check_main
         return check_main(argv[1:])
+    if argv[:1] == ["film-lut"]:
+        from .film.lut_export import main as film_lut_main
+        return film_lut_main(argv[1:])
+    if argv[:1] == ["delta-e"]:
+        from .metrics.delta_e import main as delta_e_main
+        return delta_e_main(argv[1:])
     if not argv:
         build_parser().print_help()
         return 2

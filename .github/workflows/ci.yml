@@ -72,6 +72,28 @@ jobs:
               assert image.mode == "RGB"
               assert image.info.get("icc_profile")
           PY
+      - name: Verify packaged film recipes
+        run: |
+          cube="$RUNNER_TEMP/warm-negative-400.cube"
+          "$RUNNER_TEMP/wheel-venv/bin/reality-first-photo" film-lut --recipe warm-negative-400 --output "$cube" --size 5
+          "$RUNNER_TEMP/wheel-venv/bin/python" -I - "$cube" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          from reality_first_normalization.film import list_recipes
+
+          cube = Path(sys.argv[1])
+          text = cube.read_text(encoding="utf-8")
+          assert "LUT_3D_SIZE 5" in text
+          assert "no grain or halation" in text
+          provenance = json.loads(cube.with_name(cube.stem + ".provenance.json").read_text(encoding="utf-8"))
+          assert provenance["verification"] == "unverified"
+          assert provenance["spatial_effects_included"] is False
+          assert provenance["recipe_id"] == "warm-negative-400"
+          assert "warm-negative-400" in list_recipes()
+          assert len(list_recipes()) >= 3
+          PY
       - name: Verify installed workflow and interrupted-run recovery
         run: python scripts/acceptance.py --python "$RUNNER_TEMP/wheel-venv/bin/python"
       - name: Run packaged four-way comparison

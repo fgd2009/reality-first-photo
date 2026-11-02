@@ -16,7 +16,8 @@ A successful check describes the files read at that time. It does not export ima
 | Situation | What to do |
 | --- | --- |
 | Existing output file, folder or link | Choose a new output path. Do not delete previous output merely to retry; the CLI does not overwrite it. |
-| Missing LUT or unsupported CUBE | Correct the path or supply a supported, appropriately licensed encoded-sRGB 3D CUBE. `compare` requires a LUT; ordinary normalization-only export can omit it. |
+| Missing LUT or unsupported CUBE | Correct the path or supply a supported, appropriately licensed encoded-sRGB 3D CUBE. `compare` requires a LUT unless `--film` is set. Ordinary normalization-only export can omit both. |
+| Unknown film recipe | Use a bundled id such as `warm-negative-400`, or a UTF-8 JSON file that passes the loader. Bundled recipes are unverified against scans. `film-lut` omits grain and halation. |
 | Missing ICC | The CLI assumes encoded sRGB, warns, and records that assumption on the report. Re-export tagged RGB sRGB when the encoding is uncertain. `--assume-srgb` is the explicit record; `--strict-color` rejects the file. An invalid ICC is always rejected. |
 | Invalid or unsupported ICC | Re-export through a trusted color-managed tool using the [color contract](COLOR_CONTRACT.md). The assumption flag cannot override an invalid embedded profile. |
 | RAW, alpha, animation or another unsupported format | Convert to a supported tagged RGB input outside this tool. No RAW decoder or automatic format workaround is added by `check`. |

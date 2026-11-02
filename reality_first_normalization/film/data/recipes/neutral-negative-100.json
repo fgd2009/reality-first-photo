@@ -1,0 +1,181 @@
+{
+  "id": "neutral-negative-100",
+  "display_name": "Neutral negative 100",
+  "process": "negative-print",
+  "model_version": "parametric-hd-beer-lambert-v1",
+  "verification": "unverified",
+  "summary": "Slow colour-negative and print model with fine grain, mild halation and a near-neutral print balance. The 100 in the name is a speed-class label, not a measured ISO speed.",
+  "constants_origin": "Round illustrative parameters chosen for this project, then gray-balanced inside this same model. Not fitted to a scan, not copied from a manufacturer table, and not taken from another film-simulation project.",
+  "notes": "Illustrative parameters only. Physical resemblance to any real film is unverified.",
+  "sources": [
+    {
+      "title": "Hurter and Driffield, Journal of the Society of Chemical Industry 9 (1890)",
+      "role": "Density versus log exposure, the H&D characteristic curve"
+    },
+    {
+      "title": "Mees and James (eds.), The Theory of the Photographic Process, 4th ed., Macmillan, 1977",
+      "role": "Sensitometry, granularity and halation as described in that textbook"
+    },
+    {
+      "title": "Hunt, The Reproduction of Colour, 6th ed., Wiley, 2004",
+      "role": "Integral versus analytical density, dye overlap, orange mask, negative-positive and reversal"
+    },
+    {
+      "title": "IUPAC Gold Book, Beer–Lambert law",
+      "role": "Transmittance as 10 to the power of minus optical density",
+      "url": "https://goldbook.iupac.org/terms/view/B00626"
+    },
+    {
+      "title": "ICC sRGB color space registry, IEC 61966-2-1 transfer and primaries",
+      "role": "Encoded sRGB input and output, not a camera spectral sensitivity",
+      "url": "https://registry.color.org/rgb-registry/srgb"
+    }
+  ],
+  "exposure": {
+    "scene_mid_gray": 0.18,
+    "exposure_ev": 0.0
+  },
+  "sensitivity": {
+    "layer_order": [
+      "cyan",
+      "magenta",
+      "yellow"
+    ],
+    "matrix_rgb_to_layers": [
+      [
+        0.9,
+        0.08,
+        0.02
+      ],
+      [
+        0.07,
+        0.88,
+        0.05
+      ],
+      [
+        0.03,
+        0.08,
+        0.89
+      ]
+    ],
+    "layer_log_h_offset": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "curve": {
+    "d_min": 0.2,
+    "d_max": 2.45,
+    "log_h_mid": 0.0,
+    "gamma": 0.64,
+    "asymmetry": 0.05,
+    "skew_softness": 0.55
+  },
+  "dyes": {
+    "absorption_rgb_from_layers": [
+      [
+        0.9,
+        0.22,
+        0.04
+      ],
+      [
+        0.16,
+        0.84,
+        0.12
+      ],
+      [
+        0.05,
+        0.28,
+        0.92
+      ]
+    ],
+    "orange_mask_density_rgb": [
+      0.12,
+      0.07,
+      0.03
+    ]
+  },
+  "grain": {
+    "strength": 0.01,
+    "exponent": 0.5,
+    "midtone_emphasis": 0.35
+  },
+  "halation": {
+    "threshold": 2.2,
+    "gain_rgb": [
+      0.035,
+      0.012,
+      0.006
+    ],
+    "sigma_fraction": 0.012
+  },
+  "print": {
+    "exposure_ev": -0.050041,
+    "reference_transmittance": 0.04,
+    "balance_rgb": [
+      0.840433,
+      0.754494,
+      0.758668
+    ],
+    "sensitivity": {
+      "layer_order": [
+        "cyan",
+        "magenta",
+        "yellow"
+      ],
+      "matrix_rgb_to_layers": [
+        [
+          0.88,
+          0.09,
+          0.03
+        ],
+        [
+          0.08,
+          0.86,
+          0.06
+        ],
+        [
+          0.04,
+          0.1,
+          0.86
+        ]
+      ],
+      "layer_log_h_offset": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "curve": {
+      "d_min": 0.06,
+      "d_max": 2.15,
+      "log_h_mid": 0.0,
+      "gamma": 1.7,
+      "asymmetry": 0.1,
+      "skew_softness": 0.45
+    },
+    "absorption_rgb_from_layers": [
+      [
+        0.9,
+        0.22,
+        0.04
+      ],
+      [
+        0.16,
+        0.84,
+        0.12
+      ],
+      [
+        0.05,
+        0.28,
+        0.92
+      ]
+    ],
+    "base_density_rgb": [
+      0.04,
+      0.04,
+      0.04
+    ]
+  }
+}

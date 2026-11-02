@@ -57,7 +57,7 @@ The quick-start commands reuse the demo's generated inputs and original warm LUT
 
 Each route starts independently from the same decoded input before PNG quantization; the reference PNG is not fed back into another route. The comparison does not select a best result. Use the image links to open/save individual exports and expand the details to inspect recipe strengths, actual normalization operations and ICC decisions. The default normalization strength is 0.6, LUT strength is 1 and preview long edge is 2048; adjust those with `--normalize-strength`, `--lut-strength` and `--max-long-edge`. Comparison output is always **8-bit PNG with the working sRGB ICC**.
 
-For your own images, replace `--input` and `--lut` with local paths, and choose a new output directory. `compare` requires a supported LUT. RAW and invalid or non-RGB ICC profiles remain rejected. Untagged JPEG, PNG and supported TIFF inputs are **assumed to be encoded sRGB** by default: the command prints a warning and records `default_assume_srgb_untagged_rgb8` or `default_assume_srgb_untagged_high_depth` plus `UntaggedAssumption: default` in the manifest and HTML report. `--assume-srgb` records the same pixels as an explicit declaration (`explicit_assume_srgb_…`). `--strict-color` restores rejection of untagged inputs. Neither flag can bypass an invalid embedded ICC. The Python `load_image` default stays strict unless the caller opts in.
+For your own images, replace `--input` and `--lut` with local paths, and choose a new output directory. `compare` requires a supported LUT unless `--film` is set. RAW and invalid or non-RGB ICC profiles remain rejected. Untagged JPEG, PNG and supported TIFF inputs are **assumed to be encoded sRGB** by default: the command prints a warning and records `default_assume_srgb_untagged_rgb8` or `default_assume_srgb_untagged_high_depth` plus `UntaggedAssumption: default` in the manifest and HTML report. `--assume-srgb` records the same pixels as an explicit declaration (`explicit_assume_srgb_…`). `--strict-color` restores rejection of untagged inputs. Neither flag can bypass an invalid embedded ICC. The Python `load_image` default stays strict unless the caller opts in.
 
 Input symlinks (including links inside an input folder), existing output paths and outputs inside the input tree are rejected. Supported input names/content and LUT bytes are checked between routes and before completion; a detected change leaves a failed report without a success page. This is change detection, not an immutable file snapshot.
 
@@ -93,9 +93,26 @@ Choose a **new output directory** for each run. Existing directories are rejecte
 | --- | --- |
 | Output directory already exists | Pick a new directory, for example `--output first-look-2`. Existing output is preserved. |
 | A new input has no ICC profile | The CLI assumes encoded sRGB, prints a warning, and records that assumption. Re-export a tagged RGB sRGB file when the encoding is uncertain. `--assume-srgb` records an explicit declaration. `--strict-color` rejects the file instead. An invalid embedded ICC is always rejected. |
-| CUBE LUT not found | Correct the `--lut` path to your own supported CUBE file. For the standard image-processing command, omit `--lut` only if you want normalization alone; `compare` requires it. |
+| CUBE LUT not found | Correct the `--lut` path to your own supported CUBE file. For the standard image-processing command, omit `--lut` only if you want normalization alone. `compare` requires a LUT unless `--film` is set. |
 
 Use the [troubleshooting guide](docs/TROUBLESHOOTING.md) for read-only checks, status interpretation and the pending synthetic HTML visual checklist. Actual browser appearance remains unverified in the managed development environment: local-file navigation was blocked with `ERR_BLOCKED_BY_ADMINISTRATOR`. Do not bypass that policy; structural HTML tests are not visual browser validation.
+
+## Parametric film model (unverified)
+
+`--film` runs after normalization and before a user LUT. It is a simplified photographic model: an sRGB decode, a Hurter–Driffield-style characteristic curve, a 3×3 layer sensitivity and dye-absorption matrix (Beer–Lambert), density-dependent grain, and highlight halation. Five bundled recipes use generic names such as `warm-negative-400`. The number is a speed-class label, not a measured ISO speed. The parameters were chosen for this project and gray-balanced inside the model. They are not measurements of commercial stocks, and they were not taken from another film-simulation project.
+
+No bundled recipe has been compared with a real film scan. Treat the pictures as an unverified parametric preview.
+
+```sh
+reality-first-photo --input photo.png --output film-out --film warm-negative-400 --film-seed 1 --format png
+reality-first-photo compare --input photo.png --output film-compare --film warm-negative-400 --film-seed 1
+reality-first-photo film-lut --recipe warm-negative-400 --output warm-negative-400.cube --size 17
+reality-first-photo delta-e --reference a.png --sample b.png
+```
+
+The manifest records the recipe file hash, the interpreted-parameter hash, the model version, the strength, the seed and the per-image grain seed. The same seed with NumPy 2.4.6 repeats the grain. `--film-color-only` and `film-lut` omit grain and halation, because a CUBE cannot store those spatial effects. `delta-e` prints CIEDE2000 summaries and does not decide whether a result looks like film. Sources and the RAW decision are in [docs/FILM_MODEL.md](docs/FILM_MODEL.md).
+
+SpektraFilm and SpektraLab are acknowledged as open tools that encouraged this category of work. This repository does not use their code, LUTs, configuration files or numeric tables.
 
 ## Preview boundaries
 

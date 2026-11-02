@@ -10,7 +10,11 @@ The project's [MIT license](LICENSE) covers its original source code, documentat
 
 SHA-256: `1e7c6b474ceb9dcf7796e85ccb898e5668d5c87d07b98d1ec702756e4e747706`.
 
-This notice applies to that generated profile only. No commercial photographic profile, LUT, XMP preset or real photograph is bundled.
+This notice applies to that generated profile only. No commercial photographic profile, LUT, XMP preset, film data sheet or real photograph is bundled.
+
+## Film recipes
+
+`reality_first_normalization/film/data/recipes/*.json` are original parameter files written for this project. They are not measurements copied from a manufacturer and not files imported from another film-simulation project. Their `sources` arrays cite textbooks and public standards for the model family. Those citations do not relicense the books or standards. See [docs/FILM_MODEL.md](docs/FILM_MODEL.md).
 
 ## Dependencies
 
